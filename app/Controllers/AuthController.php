@@ -15,22 +15,31 @@ class AuthController
             'password' => 'required|string|max:64',
         ]);
 
-        $user = User::where('email', $data['email'])->first();
+        // normalize email
+        $email = strtolower(trim($data['email']));
+
+        $user = User::where('email', $email)->first();
         if (!$user || !Hash::check($data['password'], $user->password)) {
+            // 401 für invalid creds; neutrale Message
             return response()->json(['message' => 'Invalid credentials'], 401);
         }
 
         $token = $user->createToken('api')->plainTextToken;
 
         return response()->json([
-            'user'  => $user,
+            'user'  => $user->fresh(), // sicherheitshalber frisch laden
             'token' => $token,
-        ]);
+        ], 200);
     }
 
     public function logout(Request $request)
     {
-        $request->user()->currentAccessToken()?->delete();
-        return response()->json(['message' => 'ok']);
+        // ?all=1 -> revoke all tokens
+        if ($request->boolean('all')) {
+            $request->user()->tokens()->delete();
+        } else {
+            $request->user()->currentAccessToken()?->delete();
+        }
+        return response()->json(['message' => 'ok'], 200);
     }
 }

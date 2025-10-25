@@ -18,23 +18,24 @@ class UserController
             'profile'  => ['sometimes','array'],
         ]);
 
+        $email = strtolower(trim($data['email']));
+
         $user = User::create([
-            'email'    => $data['email'],
+            'email'    => $email,
             'password' => $data['password'], // hashed via mutator
             'profile'  => $data['profile'] ?? null,
             'is_admin' => false,
         ]);
 
-        // optional: auto-login after register
         $token = $user->createToken('api')->plainTextToken;
 
-        return response()->json(['user' => $user, 'token' => $token], 201);
+        return response()->json(['user' => $user->fresh(), 'token' => $token], 201);
     }
 
     /** Me */
     public function index(Request $request)
     {
-        return $request->user();
+        return response()->json(['user' => $request->user()], 200);
     }
 
     /** Update me */
@@ -44,17 +45,23 @@ class UserController
 
         $data = $request->validate([
             'email'    => ['sometimes','email','max:190', Rule::unique('users','email')->ignore($user->id)],
-            'password' => ['sometimes','string','min:8','max:64'],
+            'password' => ['sometimes','string','min:8','max:64','confirmed'], // erlaubt optionales change mit confirmation
             'profile'  => ['sometimes','array'],
         ]);
 
-        if (array_key_exists('email', $data))    $user->email = $data['email'];
-        if (array_key_exists('password', $data)) $user->password = $data['password']; // mutator hashes
-        if (array_key_exists('profile', $data))  $user->profile = $data['profile'];
+        if (array_key_exists('email', $data)) {
+            $user->email = strtolower(trim($data['email']));
+        }
+        if (array_key_exists('password', $data)) {
+            $user->password = $data['password']; // mutator hashes
+        }
+        if (array_key_exists('profile', $data)) {
+            $user->profile = $data['profile'];
+        }
 
         $user->save();
 
-        return $user->fresh();
+        return response()->json(['user' => $user->fresh()], 200);
     }
 
     /** Delete account (+ cleanup files like reports) */
@@ -62,11 +69,16 @@ class UserController
     {
         $user = $request->user();
 
-        // cleanup any stored private files if you already create reports/uploads later
+        // cleanup reports 
         if (method_exists($user, 'reports')) {
             foreach ($user->reports as $rep) {
                 if (!empty($rep->file_path)) {
-                    Storage::disk('reports')->delete($rep->file_path);
+                    // if 'reports' disk not configured, use 'public'
+                    try {
+                        Storage::disk('reports')->delete($rep->file_path);
+                    } catch (\Throwable $e) {
+                        Storage::disk('public')->delete($rep->file_path);
+                    }
                 }
             }
         }

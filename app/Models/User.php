@@ -46,7 +46,7 @@ class User extends Authenticatable
     public function setPasswordAttribute($value): void
     {
         if (!$value) return;
-            // if it's already argon/ bcript
+            // if it's already encrypted
         if (is_string($value) && str_starts_with($value, '$')) {
             $this->attributes['password'] = $value;
         } else {
@@ -54,3 +54,34 @@ class User extends Authenticatable
         }
     }
 }
+
+
+class User extends Authenticatable
+{
+    use HasApiTokens, HasFactory, Notifiable;
+
+    protected $fillable = ['email','password','profile','is_admin'];
+
+    protected $hidden = ['password','remember_token'];
+
+    protected $casts = [
+        'email_verified_at' => 'datetime',
+        'profile' => 'array', 
+        'is_admin' => 'boolean',
+    ];
+
+    // Passwort-Mutator
+    public function setPasswordAttribute($value)
+    {
+        // falls schon gehasht, nicht doppelt hashen
+        $this->attributes['password'] = \Illuminate\Support\Str::startsWith($value, '$2y$')
+            ? $value
+            : \Illuminate\Support\Facades\Hash::make($value);
+    }
+
+    public function reports()
+    {
+        return $this->hasMany(\App\Models\Report::class);
+    }
+}
+
