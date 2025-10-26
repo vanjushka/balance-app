@@ -55,7 +55,7 @@ class PostController
         ]);
     }
 
-    /** SHOW: GET /api/posts/{id} (öffentlich sichtbar innerhalb auth) */
+    /** SHOW: GET /api/posts/{id} (öffentlich sichtbar */
     public function show(int $id, Request $request)
     {
         $p = Post::with(['user:id,email'])->withCount('likes')->find($id);

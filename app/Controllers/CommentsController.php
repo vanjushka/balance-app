@@ -44,7 +44,7 @@ class CommentsController
         ], 200);
     }
 
-    /** CREATE: POST /api/posts/{postId}/comments  { body } */
+    /** CREATE: POST /api/posts/{postId}/comments  { body } (nur eigener)*/
     public function create(int $postId, Request $request)
     {
         $u = $request->user();
@@ -72,7 +72,7 @@ class CommentsController
         ], 201);
     }
 
-    /** UPDATE: PATCH /api/comments/{id}  { body } (nur eigener Comment) */
+    /** UPDATE: PATCH /api/comments/{id}  { body }*/
     public function update(int $id, Request $request)
     {
         $u = $request->user();
@@ -100,7 +100,7 @@ class CommentsController
         ], 200);
     }
 
-    /** DELETE: DELETE /api/comments/{id} (nur eigener Comment) */
+    /** DELETE: DELETE /api/comments/{id} (nur eigener) */
     public function destroy(int $id, Request $request)
     {
         $u = $request->user();
