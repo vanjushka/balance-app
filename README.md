@@ -1,61 +1,249 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Balance Backend API
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+**Modul:** Portfolio – Back End Fundamentals  
+**Studentin:** Vanja Dunkel  
+**Schule:** SAE Zürich  
+**Jahr:** 2025
 
-## About Laravel
+---
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## Projektübersicht
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+Die **Balance API** ist ein REST-basiertes Backend, entwickelt mit **Laravel**, für die Frauen-Wellness-App _Balance_.  
+Sie ermöglicht Benutzer-Authentifizierung, das Erfassen und Auswerten von Symptomen, das Erstellen von Posts mit Likes und Kommentaren sowie das Generieren von ärztlichen PDF-Berichten.
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+---
 
-## Learning Laravel
+## Tech-Stack
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+| Technologie         | Zweck                             |
+| ------------------- | --------------------------------- |
+| **Laravel 11**      | PHP-Framework für Backend-Logik   |
+| **MySQL**           | Relationale Datenbank             |
+| **Laravel Sanctum** | Token-basierte Authentifizierung  |
+| **Barryvdh DomPDF** | PDF-Generierung                   |
+| **Bruno**           | API-Testing                       |
+| **DataGrip**        | Datenbank-Verwaltung und -Analyse |
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+---
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+## Installation
 
-## Laravel Sponsors
+### 1️⃣ Repository klonen
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+```bash
+git clone https://github.com/vanja-dunkel/balance_backend.git
+cd balance
+```
 
-### Premium Partners
+### 2️⃣ Abhängigkeiten installieren
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+```bash
+composer install
+```
 
-## Contributing
+### 3️⃣ `.env` konfigurieren
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+Dupliziere `.env.example` → umbenennen zu `.env`.  
+Dann anpassen:
 
-## Code of Conduct
+```
+APP_NAME=Balance
+APP_URL=http://127.0.0.1:8000
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=balance_app
+DB_USERNAME=root
+DB_PASSWORD=dein_passwort
+```
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+### 4️⃣ App-Key generieren
 
-## Security Vulnerabilities
+```bash
+php artisan key:generate
+```
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+### 5️⃣ Migrationen & Seeder ausführen
 
-## License
+```bash
+php artisan migrate:fresh --seed
+```
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+### 6️⃣ Lokalen Server starten
+
+```bash
+php artisan serve
+```
+
+Die API läuft dann unter:  
+👉 **http://127.0.0.1:8000**
+
+---
+
+## Authentifizierung (Laravel Sanctum)
+
+Alle geschützten Routen benötigen ein gültiges **Bearer-Token**.
+
+**Beispiel Login:**
+
+```json
+POST /api/login
+{
+  "email": "test@example.com",
+  "password": "secret123"
+}
+```
+
+**Antwort:**
+
+```json
+{
+    "token": "1|abc123..."
+}
+```
+
+Token in Bruno oder Postman als Header verwenden:
+
+```
+Authorization: Bearer 1|abc123...
+```
+
+---
+
+## API-Endpunkte
+
+### 🔸 Authentifizierung
+
+| Methode | Endpoint           | Beschreibung               |
+| ------- | ------------------ | -------------------------- |
+| POST    | `/api/user`        | Benutzer registrieren      |
+| POST    | `/api/login`       | Einloggen & Token erhalten |
+| POST    | `/api/auth/logout` | Ausloggen                  |
+
+---
+
+### 🔸 Benutzerverwaltung
+
+| Methode | Endpoint    | Beschreibung                 |
+| ------- | ----------- | ---------------------------- |
+| GET     | `/api/user` | Aktuellen Benutzer anzeigen  |
+| PATCH   | `/api/user` | Benutzerprofil aktualisieren |
+| DELETE  | `/api/user` | Benutzer löschen             |
+
+---
+
+### 🔸 Symptome
+
+| Methode | Endpoint              | Beschreibung                  |
+| ------- | --------------------- | ----------------------------- |
+| GET     | `/api/symptoms`       | Alle Symptom-Einträge abrufen |
+| GET     | `/api/symptoms/{id}`  | Einzelnen Eintrag anzeigen    |
+| POST    | `/api/symptoms`       | Neuen Eintrag erstellen       |
+| PATCH   | `/api/symptoms/{id}`  | Eintrag aktualisieren         |
+| DELETE  | `/api/symptoms/{id}`  | Eintrag löschen               |
+| GET     | `/api/symptoms/stats` | Statistik anzeigen            |
+
+---
+
+### 🔸 Posts
+
+| Methode | Endpoint               | Beschreibung             |
+| ------- | ---------------------- | ------------------------ |
+| GET     | `/api/posts`           | Alle Posts abrufen       |
+| GET     | `/api/posts/{id}`      | Einzelnen Post anzeigen  |
+| POST    | `/api/posts`           | Neuen Post erstellen     |
+| PATCH   | `/api/posts/{id}`      | Post aktualisieren       |
+| DELETE  | `/api/posts/{id}`      | Post löschen             |
+| POST    | `/api/posts/{id}/like` | Like / Unlike umschalten |
+
+---
+
+### 🔸 Kommentare
+
+| Methode | Endpoint                       | Beschreibung                     |
+| ------- | ------------------------------ | -------------------------------- |
+| GET     | `/api/posts/{postId}/comments` | Kommentare zu einem Post abrufen |
+| POST    | `/api/posts/{postId}/comments` | Kommentar hinzufügen             |
+| PATCH   | `/api/comments/{id}`           | Kommentar aktualisieren          |
+| DELETE  | `/api/comments/{id}`           | Kommentar löschen                |
+
+---
+
+### 🔸 Reports (PDF-Berichte)
+
+| Methode | Endpoint                     | Beschreibung               |
+| ------- | ---------------------------- | -------------------------- |
+| GET     | `/api/reports`               | Alle Berichte abrufen      |
+| GET     | `/api/reports/{id}`          | Einzelnen Bericht anzeigen |
+| POST    | `/api/reports`               | Bericht erstellen (PDF)    |
+| GET     | `/api/reports/{id}/download` | PDF herunterladen          |
+| DELETE  | `/api/reports/{id}`          | Bericht löschen            |
+
+---
+
+## Beispiel: Bericht erstellen
+
+**POST /api/reports**
+
+```json
+{
+    "period_start": "2025-10-01",
+    "period_end": "2025-10-25"
+}
+```
+
+**Antwort:**
+
+```json
+{
+    "data": {
+        "id": 1,
+        "user_id": 1,
+        "period_start": "2025-10-01T00:00:00.000000Z",
+        "period_end": "2025-10-25T23:59:59.000000Z",
+        "file_path": "reports/1/report_1730000000.pdf",
+        "generated_at": "2025-10-25T13:00:00.000000Z"
+    }
+}
+```
+
+Das PDF wird gespeichert unter:  
+📂 `/storage/app/public/reports/...`
+
+---
+
+## Datenbankstruktur (vereinfacht)
+
+```
+users
+ ├─ id, email, password, profile, is_admin
+
+symptom_logs
+ ├─ id, user_id, log_date, pain_intensity, energy_level, mood, notes
+
+posts
+ ├─ id, user_id, body, image_url
+
+comments
+ ├─ id, post_id, user_id, body
+
+reports
+ ├─ id, user_id, period_start, period_end, file_path, generated_at
+```
+
+---
+
+## Test & Kontrolle
+
+-   Alle Endpunkte wurden in **Bruno** erfolgreich getestet
+-   **DataGrip** zeigt korrekt alle Tabellen und Relationen
+-   **Server läuft lokal** mit `php artisan serve`
+-   **PDF-Berichte** werden erfolgreich generiert und im `storage/public`-Verzeichnis gespeichert
+
+---
+
+## Lizenz
+
+© 2025 **Vanja Dunkel** – SAE Zürich  
+Erstellt für das Modul _Portfolio – Back End Fundamentals_.
