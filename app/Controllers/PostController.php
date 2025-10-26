@@ -17,13 +17,14 @@ class PostController
             'per_page' => ['sometimes','integer','min:1','max:100'],
         ]);
 
-        $q = Post::query()->with('user')->withCount('likes');
+        $q = Post::query()
+            ->with(['user:id,email'])
+            ->withCount('likes');
 
         if (isset($data['user_id'])) {
-            $q->where('user_id', (int)$data['user_id']);
+            $q->where('user_id', (int) $data['user_id']);
         }
 
-        // Sortierung
         $sort = $data['sort'] ?? 'latest';
         if ($sort === 'popular') {
             $q->orderByDesc('likes_count')->orderByDesc('id');
@@ -32,52 +33,43 @@ class PostController
         }
 
         $per = $data['per_page'] ?? 20;
-        $p = $q->paginate($per);
+        $paginator = $q->paginate($per);
 
-        // shape: author minimal (id,email), likes_count
-        $rows = collect($p->items())->map(function (Post $post) {
-            return [
-                'id'         => $post->id,
-                'body'       => $post->body,
-                'image_url'  => $post->image_url,
-                'likes_count'=> $post->likes_count ?? $post->likes()->count(),
-                'author'     => [
-                    'id'    => $post->user->id,
-                    'email' => $post->user->email,
-                ],
-                'created_at' => $post->created_at?->toISOString(),
-            ];
-        });
+        $rows = collect($paginator->items())->map(fn (Post $post) => [
+            'id'          => $post->id,
+            'body'        => $post->body,
+            'image_url'   => $post->image_url,
+            'likes_count' => $post->likes_count,
+            'author'      => ['id' => $post->user->id, 'email' => $post->user->email],
+            'created_at'  => $post->created_at?->toISOString(),
+        ]);
 
         return response()->json([
             'data' => $rows,
             'meta' => [
-                'total'        => $p->total(),
-                'per_page'     => $p->perPage(),
-                'current_page' => $p->currentPage(),
-                'last_page'    => $p->lastPage(),
+                'total'        => $paginator->total(),
+                'per_page'     => $paginator->perPage(),
+                'current_page' => $paginator->currentPage(),
+                'last_page'    => $paginator->lastPage(),
             ],
         ]);
     }
 
-    /** SHOW: GET /api/posts/{id} */
+    /** SHOW: GET /api/posts/{id} (öffentlich sichtbar innerhalb auth) */
     public function show(int $id, Request $request)
     {
-        $post = Post::with('user')->withCount('likes')->find($id);
-        if (!$post) return response()->json(['message' => 'Not found'], 404);
+        $p = Post::with(['user:id,email'])->withCount('likes')->find($id);
+        if (!$p) return response()->json(['message' => 'Not found'], 404);
 
         return response()->json([
             'data' => [
-                'id'         => $post->id,
-                'body'       => $post->body,
-                'image_url'  => $post->image_url,
-                'likes_count'=> $post->likes_count,
-                'author'     => [
-                    'id'    => $post->user->id,
-                    'email' => $post->user->email,
-                ],
-                'created_at' => $post->created_at?->toISOString(),
-            ]
+                'id'          => $p->id,
+                'body'        => $p->body,
+                'image_url'   => $p->image_url,
+                'likes_count' => $p->likes_count,
+                'author'      => ['id' => $p->user->id, 'email' => $p->user->email],
+                'created_at'  => $p->created_at?->toISOString(),
+            ],
         ], 200);
     }
 
@@ -85,6 +77,7 @@ class PostController
     public function create(Request $request)
     {
         $u = $request->user();
+
         $data = $request->validate([
             'body'      => ['required','string'],
             'image_url' => ['sometimes','nullable','url','max:2048'],
@@ -94,29 +87,27 @@ class PostController
             'user_id'   => $u->id,
             'body'      => $data['body'],
             'image_url' => $data['image_url'] ?? null,
-        ]);
-
-        $post->load('user');
+        ])->load('user:id,email');
 
         return response()->json([
             'data' => [
-                'id'         => $post->id,
-                'body'       => $post->body,
-                'image_url'  => $post->image_url,
-                'likes_count'=> 0,
-                'author'     => ['id'=>$u->id, 'email'=>$u->email],
-                'created_at' => $post->created_at?->toISOString(),
+                'id'          => $post->id,
+                'body'        => $post->body,
+                'image_url'   => $post->image_url,
+                'likes_count' => 0,
+                'author'      => ['id' => $post->user->id, 'email' => $post->user->email],
+                'created_at'  => $post->created_at?->toISOString(),
             ],
         ], 201);
     }
 
-    /** UPDATE: PATCH /api/posts/{id} */
+    /** UPDATE: PATCH /api/posts/{id} (nur Owner) */
     public function update(int $id, Request $request)
     {
         $u = $request->user();
         $post = Post::find($id);
-        if (!$post) return response()->json(['message'=>'Not found'], 404);
-        if ($post->user_id !== $u->id) return response()->json(['message'=>'Forbidden'], 403);
+        if (!$post) return response()->json(['message' => 'Not found'], 404);
+        if ($post->user_id !== $u->id) return response()->json(['message' => 'Forbidden'], 403);
 
         $data = $request->validate([
             'body'      => ['sometimes','string'],
@@ -124,30 +115,29 @@ class PostController
         ]);
 
         $post->fill($data)->save();
-        $post->load('user');
+        $post->load('user:id,email')->loadCount('likes');
 
         return response()->json([
             'data' => [
-                'id'         => $post->id,
-                'body'       => $post->body,
-                'image_url'  => $post->image_url,
-                'likes_count'=> $post->likes()->count(),
-                'author'     => ['id'=>$post->user->id, 'email'=>$post->user->email],
-                'created_at' => $post->created_at?->toISOString(),
+                'id'          => $post->id,
+                'body'        => $post->body,
+                'image_url'   => $post->image_url,
+                'likes_count' => $post->likes_count,
+                'author'      => ['id' => $post->user->id, 'email' => $post->user->email],
+                'created_at'  => $post->created_at?->toISOString(),
             ],
         ], 200);
     }
 
-    /** DELETE: DELETE /api/posts/{id} */
+    /** DELETE: DELETE /api/posts/{id} (nur Owner) */
     public function destroy(int $id, Request $request)
     {
         $u = $request->user();
         $post = Post::find($id);
-        if (!$post) return response()->json(['message'=>'Not found'], 404);
-        if ($post->user_id !== $u->id) return response()->json(['message'=>'Forbidden'], 403);
+        if (!$post) return response()->json(['message' => 'Not found'], 404);
+        if ($post->user_id !== $u->id) return response()->json(['message' => 'Forbidden'], 403);
 
-        // Likes werden per FK cascade gelöscht
-        $post->delete();
+        $post->delete(); // Likes & Comments via FK-Cascade
         return response()->json([], 204);
     }
 
@@ -156,20 +146,23 @@ class PostController
     {
         $u = $request->user();
         $post = Post::find($id);
-        if (!$post) return response()->json(['message'=>'Not found'], 404);
+        if (!$post) return response()->json(['message' => 'Not found'], 404);
 
         $existing = PostLike::where('post_id', $id)->where('user_id', $u->id)->first();
+
         if ($existing) {
             $existing->delete();
             $liked = false;
         } else {
-            PostLike::create(['post_id'=>$id, 'user_id'=>$u->id]);
+            PostLike::create(['post_id' => $id, 'user_id' => $u->id]);
             $liked = true;
         }
 
+        $count = PostLike::where('post_id', $id)->count();
+
         return response()->json([
             'liked'       => $liked,
-            'likes_count' => $post->likes()->count(),
+            'likes_count' => $count,
         ], 200);
     }
 }

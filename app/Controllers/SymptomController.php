@@ -4,7 +4,6 @@ namespace App\Controllers;
 
 use App\Models\SymptomLog;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 
 class SymptomController
 {
@@ -40,20 +39,14 @@ class SymptomController
     }
 
     /** SHOW: GET /api/symptoms/{id} */
-    public function show(int $id, Request $request)
-    {
-        $user = $request->user();
-        $sym = SymptomLog::find($id);
+public function show(int $id, Request $request)
+{
+    $u = $request->user();
+    $row = \App\Models\SymptomLog::where('id', $id)->where('user_id', $u->id)->first();
+    if (!$row) return response()->json(['message' => 'Not found'], 404);
 
-        if (!$sym) {
-            return response()->json(['message' => 'Not found'], 404);
-        }
-        if ($sym->user_id !== $user->id) {
-            return response()->json(['message' => 'Forbidden'], 403);
-        }
-
-        return response()->json(['data' => $sym], 200);
-    }
+    return response()->json(['data' => $row]);
+}
 
     /** CREATE: POST /api/symptoms (ein Log pro Tag & User) */
     public function create(Request $request)

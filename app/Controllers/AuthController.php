@@ -2,12 +2,13 @@
 
 namespace App\Controllers;
 
-use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use App\Models\User;
 
 class AuthController
 {
+    /** POST /api/auth/login */
     public function login(Request $request)
     {
         $data = $request->validate([
@@ -15,31 +16,25 @@ class AuthController
             'password' => 'required|string|max:64',
         ]);
 
-        // normalize email
         $email = strtolower(trim($data['email']));
+        $user  = User::where('email', $email)->first();
 
-        $user = User::where('email', $email)->first();
         if (!$user || !Hash::check($data['password'], $user->password)) {
-            // 401 für invalid creds; neutrale Message
             return response()->json(['message' => 'Invalid credentials'], 401);
         }
 
         $token = $user->createToken('api')->plainTextToken;
 
         return response()->json([
-            'user'  => $user->fresh(), // sicherheitshalber frisch laden
+            'user'  => $user->fresh(),
             'token' => $token,
         ], 200);
     }
 
+    /** POST /api/auth/logout  (requires Bearer token) */
     public function logout(Request $request)
     {
-        // ?all=1 -> revoke all tokens
-        if ($request->boolean('all')) {
-            $request->user()->tokens()->delete();
-        } else {
-            $request->user()->currentAccessToken()?->delete();
-        }
-        return response()->json(['message' => 'ok'], 200);
+        $request->user()->currentAccessToken()?->delete();
+        return response()->json(['message' => 'ok']);
     }
 }

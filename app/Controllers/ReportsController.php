@@ -30,10 +30,26 @@ class ReportsController
                 'current_page' => $paginator->currentPage(),
                 'last_page'    => $paginator->lastPage(),
             ],
-        ]);
+        ], 200);
     }
 
-    /** POST /api/reports  {period_start, period_end} */
+    /** GET /api/reports/{id} */
+    public function show(int $id, Request $request)
+    {
+        $u = $request->user();
+
+        $rep = Report::where('id', $id)
+            ->where('user_id', $u->id)
+            ->first();
+
+        if (!$rep) {
+            return response()->json(['message' => 'Not found'], 404);
+        }
+
+        return response()->json(['data' => $rep], 200);
+    }
+
+    /** POST /api/reports  Body: { "period_start": "YYYY-MM-DD", "period_end": "YYYY-MM-DD" } */
     public function create(Request $request)
     {
         $u = $request->user();
@@ -46,28 +62,36 @@ class ReportsController
         $from = Carbon::parse($data['period_start'])->startOfDay();
         $to   = Carbon::parse($data['period_end'])->endOfDay();
 
-        // Datenbasis holen (leichtgewichtig)
+        // Logs für Zeitraum holen (leichtgewichtig)
         $logs = SymptomLog::query()
             ->where('user_id', $u->id)
             ->whereBetween('log_date', [$from->toDateString(), $to->toDateString()])
             ->orderBy('log_date')
             ->get(['log_date','pain_intensity','energy_level','mood']);
 
-        $avgPain = round((float)$logs->avg('pain_intensity'), 2);
+        $avgPain = round((float) $logs->avg('pain_intensity'), 2);
 
-        // Sehr einfache HTML-Vorlage direkt als String (kein Blade nötig)
-        $html = viewContent($u->email, $from->toDateString(), $to->toDateString(), $avgPain, $logs);
+        // HTML für PDF erzeugen
+        $html = $this->viewContent(
+            $u->email,
+            $from->toDateString(),
+            $to->toDateString(),
+            $avgPain,
+            $logs
+        );
 
+        // PDF generieren
         $pdf = Pdf::loadHTML($html)->setPaper('a4');
-        $path = "reports/{$u->id}/report_".now()->timestamp.".pdf";
 
-        // Speichern auf 'public' Disk
+        // Datei-Pfad (public disk)
+        $path = "reports/{$u->id}/report_" . now()->timestamp . ".pdf";
         Storage::disk('public')->put($path, $pdf->output());
 
+        // Eintrag speichern
         $report = Report::create([
             'user_id'      => $u->id,
-            'period_start' => $from,
-            'period_end'   => $to,
+            'period_start' => $from->toDateString(),
+            'period_end'   => $to->toDateString(),
             'file_path'    => $path,
             'generated_at' => now(),
         ]);
@@ -81,47 +105,48 @@ class ReportsController
         $u = $request->user();
         $rep = Report::find($id);
 
-        if (!$rep) return response()->json(['message'=>'Not found'], 404);
-        if ($rep->user_id !== $u->id) return response()->json(['message'=>'Forbidden'], 403);
+        if (!$rep) {
+            return response()->json(['message' => 'Not found'], 404);
+        }
+        if ($rep->user_id !== $u->id) {
+            return response()->json(['message' => 'Forbidden'], 403);
+        }
 
         $abs = Storage::disk('public')->path($rep->file_path);
-        if (!file_exists($abs)) return response()->json(['message'=>'File missing'], 410);
+        if (!file_exists($abs)) {
+            return response()->json(['message' => 'File missing'], 410);
+        }
 
         return response()->download($abs, basename($abs));
     }
 
-    /**
-     * DELETE /api/reports   (dein aktuelles Routing ohne ID)
-     * Erwartet: ?id=123  ODER JSON { "id": 123 }
-     * Falls du die Route auf /api/reports/{id} umstellst, kannst du destroyById nutzen.
-     */
-    public function destroy(Request $request)
+    /** DELETE /api/reports/{id} */
+    public function destroy(int $id, Request $request)
     {
-        $request->validate(['id' => ['required','integer']]);
-        $id = (int) $request->input('id');
-
         $u = $request->user();
         $rep = Report::find($id);
 
-        if (!$rep) return response()->json(['message'=>'Not found'], 404);
-        if ($rep->user_id !== $u->id) return response()->json(['message'=>'Forbidden'], 403);
+        if (!$rep) {
+            return response()->json(['message' => 'Not found'], 404);
+        }
+        if ($rep->user_id !== $u->id) {
+            return response()->json(['message' => 'Forbidden'], 403);
+        }
 
-        // Datei löschen (falls vorhanden)
         Storage::disk('public')->delete($rep->file_path);
         $rep->delete();
 
         return response()->json([], 204);
     }
-}
 
-/** ----------------- private helper (unten in der Datei) ----------------- */
-if (!function_exists('viewContent')) {
-    function viewContent(string $email, string $from, string $to, float $avgPain, $logs): string
+    /** --------- Private HTML-Helper für das PDF --------- */
+    private function viewContent(string $email, string $from, string $to, float $avgPain, $logs): string
     {
         $rows = '';
         foreach ($logs as $l) {
+            $date = method_exists($l->log_date, 'toDateString') ? $l->log_date->toDateString() : (string) $l->log_date;
             $rows .= '<tr>'.
-                '<td style="padding:4px;border:1px solid #ccc;">'.$l->log_date->toDateString().'</td>'.
+                '<td style="padding:4px;border:1px solid #ccc;">'.$date.'</td>'.
                 '<td style="padding:4px;border:1px solid #ccc;">'.$l->pain_intensity.'</td>'.
                 '<td style="padding:4px;border:1px solid #ccc;">'.$l->energy_level.'</td>'.
                 '<td style="padding:4px;border:1px solid #ccc;">'.$l->mood.'</td>'.
