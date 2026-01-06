@@ -3,38 +3,47 @@
 namespace App\Controllers;
 
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
-use App\Models\User;
+use Illuminate\Support\Facades\Auth;
 
 class AuthController
 {
     /** POST /api/auth/login */
     public function login(Request $request)
     {
-        $data = $request->validate([
-            'email'    => 'required|email|max:190',
-            'password' => 'required|string|max:64',
+        $credentials = $request->validate([
+            'email' => ['required', 'email', 'max:190'],
+            'password' => ['required', 'string', 'max:64'],
         ]);
 
-        $email = strtolower(trim($data['email']));
-        $user  = User::where('email', $email)->first();
+        $credentials['email'] = strtolower(trim($credentials['email']));
 
-        if (!$user || !Hash::check($data['password'], $user->password)) {
+        if (!Auth::attempt($credentials)) {
             return response()->json(['message' => 'Invalid credentials'], 401);
         }
 
-        $token = $user->createToken('api')->plainTextToken;
+        $request->session()->regenerate();
 
         return response()->json([
-            'user'  => $user->fresh(),
-            'token' => $token,
+            'user' => $request->user(),
         ], 200);
     }
 
-    /** POST /api/auth/logout  (requires Bearer token) */
+    /** GET /api/auth/me */
+    public function me(Request $request)
+    {
+        return response()->json([
+            'user' => $request->user(),
+        ], 200);
+    }
+
+    /** POST /api/auth/logout */
     public function logout(Request $request)
     {
-        $request->user()->currentAccessToken()?->delete();
-        return response()->json(['message' => 'ok']);
+        Auth::guard('web')->logout();
+
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        return response()->json(['message' => 'ok'], 200);
     }
 }

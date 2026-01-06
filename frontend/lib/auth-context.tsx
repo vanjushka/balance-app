@@ -1,6 +1,6 @@
 "use client";
 
-import {
+import React, {
     createContext,
     useContext,
     useState,
@@ -8,7 +8,14 @@ import {
     useCallback,
     ReactNode,
 } from "react";
-import { User, fetchMe, logout as apiLogout } from "@/lib/auth";
+import { fetchMe, logout as apiLogout } from "@/lib/auth";
+import { ApiException } from "@/lib/api";
+
+export type User = {
+    id: number;
+    name?: string | null;
+    email: string;
+};
 
 type AuthContextType = {
     user: User | null;
@@ -25,22 +32,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const refetch = useCallback(async () => {
         try {
-            const me = await fetchMe();
-            setUser(me);
-        } catch {
-            setUser(null);
-            localStorage.removeItem("token");
+            const { user } = await fetchMe<User>();
+            setUser(user);
+        } catch (err) {
+            // If not authenticated, backend should return 401
+            if (err instanceof ApiException && err.status === 401) {
+                setUser(null);
+            } else {
+                setUser(null);
+            }
         } finally {
             setLoading(false);
         }
     }, []);
 
     useEffect(() => {
-        const token = localStorage.getItem("token");
-        if (!token) {
-            setLoading(false);
-            return;
-        }
+        // Sanctum session: attempt to load the current user on mount
         refetch();
     }, [refetch]);
 
@@ -48,9 +55,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         try {
             await apiLogout();
         } catch {
-            // intentionally ignored
+            // ignore
         } finally {
-            localStorage.removeItem("token");
             setUser(null);
         }
     }, []);
@@ -64,8 +70,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 export function useAuth() {
     const ctx = useContext(AuthContext);
-    if (!ctx) {
-        throw new Error("useAuth must be used within AuthProvider");
-    }
+    if (!ctx) throw new Error("useAuth must be used within AuthProvider");
     return ctx;
 }
