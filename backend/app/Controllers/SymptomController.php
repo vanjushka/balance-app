@@ -7,21 +7,26 @@ use Illuminate\Http\Request;
 
 class SymptomController
 {
-    /** LIST: GET /api/symptoms?from=YYYY-MM-DD&to=YYYY-MM-DD&per_page=20 */
+    /** LIST: GET /api/symptoms?date=YYYY-MM-DD OR ?from=YYYY-MM-DD&to=YYYY-MM-DD&per_page=20 */
     public function index(Request $request)
     {
         $user = $request->user();
 
         $data = $request->validate([
-            'from'     => ['sometimes','date'],
-            'to'       => ['sometimes','date','after_or_equal:from'],
-            'per_page' => ['sometimes','integer','min:1','max:100'],
+            'date'     => ['sometimes', 'date'],
+            'from'     => ['sometimes', 'date'],
+            'to'       => ['sometimes', 'date', 'after_or_equal:from'],
+            'per_page' => ['sometimes', 'integer', 'min:1', 'max:100'],
         ]);
 
         $q = SymptomLog::query()->where('user_id', $user->id);
 
-        if (isset($data['from'])) $q->where('log_date', '>=', $data['from']);
-        if (isset($data['to']))   $q->where('log_date', '<=', $data['to']);
+        if (isset($data['date'])) {
+            $q->whereDate('log_date', $data['date']);
+        } else {
+            if (isset($data['from'])) $q->where('log_date', '>=', $data['from']);
+            if (isset($data['to']))   $q->where('log_date', '<=', $data['to']);
+        }
 
         $per = $data['per_page'] ?? 20;
 
@@ -39,14 +44,14 @@ class SymptomController
     }
 
     /** SHOW: GET /api/symptoms/{id} */
-public function show(int $id, Request $request)
-{
-    $u = $request->user();
-    $row = \App\Models\SymptomLog::where('id', $id)->where('user_id', $u->id)->first();
-    if (!$row) return response()->json(['message' => 'Not found'], 404);
+    public function show(int $id, Request $request)
+    {
+        $u = $request->user();
+        $row = \App\Models\SymptomLog::where('id', $id)->where('user_id', $u->id)->first();
+        if (!$row) return response()->json(['message' => 'Not found'], 404);
 
-    return response()->json(['data' => $row]);
-}
+        return response()->json(['data' => $row]);
+    }
 
     /** CREATE: POST /api/symptoms (ein Log pro Tag & User) */
     public function create(Request $request)
@@ -64,10 +69,8 @@ public function show(int $id, Request $request)
             'tags_json'      => ['sometimes','array'],
         ]);
 
-        // Eintrag auf Benutzerebene
         $payload['user_id'] = $user->id;
 
-        // unique(user_id, log_date) respektieren → bei Kollision 409 zurück
         $exists = SymptomLog::where('user_id', $user->id)
             ->where('log_date', $payload['log_date'])
             ->exists();
@@ -107,7 +110,6 @@ public function show(int $id, Request $request)
             'tags_json'      => ['sometimes','array'],
         ]);
 
-        // falls log_date geändert wird, erneut unique(user_id, log_date) absichern
         if (array_key_exists('log_date', $data)) {
             $collision = SymptomLog::where('user_id', $user->id)
                 ->where('log_date', $data['log_date'])

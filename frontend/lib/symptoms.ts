@@ -1,61 +1,93 @@
 // lib/symptoms.ts
 import { api } from "@/lib/api";
 
-// ===== TYPES =====
-export type Symptom = {
+export type SymptomLog = {
     id: number;
-    name: string;
-    severity: number;
-    note?: string;
+    user_id: number;
+    log_date: string; // YYYY-MM-DD (or ISO datetime string, depending on backend serialization)
+    pain_intensity: number;
+    energy_level?: string | null;
+    mood?: string | null;
+    sleep_quality?: number | null;
+    stress_level?: number | null;
+    notes?: string | null;
+    tags_json?: string[] | null;
     created_at: string;
-    updated_at?: string; // falls Backend das zurückgibt
+    updated_at: string;
 };
 
-export type CreateSymptomPayload = {
-    name: string;
-    severity: number;
-    note?: string;
+export type CreateSymptomLogPayload = {
+    log_date: string; // YYYY-MM-DD
+    pain_intensity: number;
+    energy_level?: string;
+    mood?: string;
+    sleep_quality?: number;
+    stress_level?: number;
+    notes?: string;
+    tags_json?: string[];
 };
 
-export type UpdateSymptomPayload = Partial<{
-    name: string;
-    severity: number;
-    note: string;
-}>;
+export type UpdateSymptomLogPayload = Partial<CreateSymptomLogPayload>;
 
 export type SymptomStats = {
     total: number;
-    average_severity: number;
+    average_severity?: number;
     most_common?: string;
-    //  weitere Stats je nach Backend
 };
 
-// ===== API FUNCTIONS =====
-export async function listSymptoms(): Promise<Symptom[]> {
-    return api.get<Symptom[]>("/symptoms");
+function unwrapListResponse(res: unknown): SymptomLog[] {
+    if (Array.isArray(res)) return res as SymptomLog[];
+
+    const maybe = res as { data?: unknown; symptoms?: unknown };
+
+    if (Array.isArray(maybe.data)) return maybe.data as SymptomLog[];
+    if (Array.isArray(maybe.symptoms)) return maybe.symptoms as SymptomLog[];
+
+    return [];
 }
 
-export async function getSymptom(id: number): Promise<Symptom> {
-    return api.get<Symptom>(`/symptoms/${id}`);
+export async function listSymptomLogs(): Promise<SymptomLog[]> {
+    const res = await api.get<unknown>("/api/symptoms");
+    return unwrapListResponse(res);
 }
 
-export async function createSymptom(
-    payload: CreateSymptomPayload
-): Promise<Symptom> {
-    return api.post<Symptom>("/symptoms", payload);
+/** GET /api/symptoms?date=YYYY-MM-DD */
+export async function listSymptomLogsForDate(
+    date: string
+): Promise<SymptomLog[]> {
+    const res = await api.get<unknown>(
+        `/api/symptoms?date=${encodeURIComponent(date)}`
+    );
+    return unwrapListResponse(res);
 }
 
-export async function updateSymptom(
+/** Convenience for Dashboard: true if at least one log exists for that date */
+export async function hasSymptomLogForDate(date: string): Promise<boolean> {
+    const logs = await listSymptomLogsForDate(date);
+    return logs.length > 0;
+}
+
+export async function getSymptomLog(id: number): Promise<SymptomLog> {
+    return api.get<SymptomLog>(`/api/symptoms/${id}`);
+}
+
+export async function createSymptomLog(
+    payload: CreateSymptomLogPayload
+): Promise<SymptomLog> {
+    return api.post<SymptomLog>("/api/symptoms", payload);
+}
+
+export async function updateSymptomLog(
     id: number,
-    payload: UpdateSymptomPayload
-): Promise<Symptom> {
-    return api.put<Symptom>(`/symptoms/${id}`, payload);
+    payload: UpdateSymptomLogPayload
+): Promise<SymptomLog> {
+    return api.patch<SymptomLog>(`/api/symptoms/${id}`, payload);
 }
 
-export async function deleteSymptom(id: number): Promise<void> {
-    return api.delete<void>(`/symptoms/${id}`);
+export async function deleteSymptomLog(id: number): Promise<void> {
+    return api.delete<void>(`/api/symptoms/${id}`);
 }
 
 export async function getSymptomStats(): Promise<SymptomStats> {
-    return api.get<SymptomStats>("/symptoms/stats");
+    return api.get<SymptomStats>("/api/symptoms/stats");
 }
