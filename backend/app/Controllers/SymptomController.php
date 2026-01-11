@@ -4,6 +4,7 @@ namespace App\Controllers;
 
 use App\Models\SymptomLog;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class SymptomController
 {
@@ -58,15 +59,25 @@ class SymptomController
     {
         $user = $request->user();
 
+        $allowedTags = [
+            'cramps','bloating','fatigue','headache','back_pain','joint_pain','breast_tenderness','nausea','dizziness',
+            'acne','oily_skin','dry_skin','hair_loss','excess_hair_growth',
+            'constipation','diarrhea','gas','stomach_pain',
+            'anxious','irritable','low_mood','brain_fog','mood_swings',
+            'insomnia','restless_sleep','night_sweats',
+            'heavy_flow','light_flow','spotting','missed_period','irregular_cycle','clotting',
+        ];
+
         $payload = $request->validate([
             'log_date'       => ['required','date'],
-            'pain_intensity' => ['required','integer','min:0','max:10'],
-            'energy_level'   => ['required','in:low,medium,high'],
-            'mood'           => ['required','in:calm,stressed,sad,happy'],
+            'pain_intensity' => ['nullable','integer','min:0','max:10'],
+            'energy_level'   => ['nullable','in:depleted,low,moderate,good,energized'],
+            'mood'           => ['nullable','in:calm,stressed,sad,happy'],
             'sleep_quality'  => ['sometimes','nullable','integer','min:0','max:10'],
             'stress_level'   => ['sometimes','nullable','integer','min:0','max:10'],
             'notes'          => ['sometimes','nullable','string'],
-            'tags_json'      => ['sometimes','array'],
+            'tags_json'      => ['nullable','array'],
+            'tags_json.*'    => ['string', Rule::in($allowedTags)],
         ]);
 
         $payload['user_id'] = $user->id;
@@ -85,7 +96,6 @@ class SymptomController
 
         return response()->json(['data' => $sym], 201);
     }
-
     /** UPDATE: PATCH /api/symptoms/{id} */
     public function update(int $id, Request $request)
     {
@@ -99,15 +109,25 @@ class SymptomController
             return response()->json(['message' => 'Forbidden'], 403);
         }
 
+        $allowedTags = [
+            'cramps','bloating','fatigue','headache','back_pain','joint_pain','breast_tenderness','nausea','dizziness',
+            'acne','oily_skin','dry_skin','hair_loss','excess_hair_growth',
+            'constipation','diarrhea','gas','stomach_pain',
+            'anxious','irritable','low_mood','brain_fog','mood_swings',
+            'insomnia','restless_sleep','night_sweats',
+            'heavy_flow','light_flow','spotting','missed_period','irregular_cycle','clotting',
+        ];
+
         $data = $request->validate([
             'log_date'       => ['sometimes','date'],
-            'pain_intensity' => ['sometimes','integer','min:0','max:10'],
-            'energy_level'   => ['sometimes','in:low,medium,high'],
-            'mood'           => ['sometimes','in:calm,stressed,sad,happy'],
+            'pain_intensity' => ['sometimes','nullable','integer','min:0','max:10'],
+            'energy_level'   => ['sometimes','nullable','in:depleted,low,moderate,good,energized'],
+            'mood'           => ['sometimes','nullable','in:calm,stressed,sad,happy'],
             'sleep_quality'  => ['sometimes','nullable','integer','min:0','max:10'],
             'stress_level'   => ['sometimes','nullable','integer','min:0','max:10'],
             'notes'          => ['sometimes','nullable','string'],
-            'tags_json'      => ['sometimes','array'],
+            'tags_json'      => ['sometimes','nullable','array'],
+            'tags_json.*'    => ['string', Rule::in($allowedTags)],
         ]);
 
         if (array_key_exists('log_date', $data)) {

@@ -4,28 +4,24 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
-import { createReport } from "@/lib/reports";
-import { api, ApiException } from "@/lib/api";
+import { ApiException } from "@/lib/api";
+import {
+    createSymptomLog,
+    listSymptomLogsForDate,
+    updateSymptomLog,
+} from "@/lib/symptoms";
 
 function todayISO(): string {
     return new Date().toISOString().slice(0, 10);
 }
 
-function addDaysISO(iso: string, days: number): string {
-    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
-    if (!m) return iso;
-
-    const year = Number(m[1]);
-    const month = Number(m[2]);
-    const day = Number(m[3]);
-
-    const dt = new Date(Date.UTC(year, month - 1, day));
-    dt.setUTCDate(dt.getUTCDate() + days);
-
-    const y = dt.getUTCFullYear();
-    const mo = String(dt.getUTCMonth() + 1).padStart(2, "0");
-    const da = String(dt.getUTCDate()).padStart(2, "0");
-    return `${y}-${mo}-${da}`;
+function formatHeaderDate(isoDay: string) {
+    const d = new Date(`${isoDay}T00:00:00`);
+    return d.toLocaleDateString(undefined, {
+        weekday: "long",
+        month: "short",
+        day: "numeric",
+    });
 }
 
 function errorMessage(err: unknown, fallback: string) {
@@ -34,88 +30,37 @@ function errorMessage(err: unknown, fallback: string) {
     return fallback;
 }
 
-type SymptomsIndexResponse = {
-    data?: unknown[];
-    meta?: unknown;
-};
+const energyOptions = [
+    "Depleted",
+    "Low",
+    "Moderate",
+    "Good",
+    "Energized",
+] as const;
 
 export default function DashboardPage() {
     const router = useRouter();
-    const { user, loading, logout } = useAuth();
-
-    const [reportLoading, setReportLoading] = useState<"7" | "30" | null>(null);
-    const [reportError, setReportError] = useState<string | null>(null);
-
-    const [todayLoading, setTodayLoading] = useState(false);
-    const [todayError, setTodayError] = useState<string | null>(null);
-    const [loggedToday, setLoggedToday] = useState<boolean | null>(null);
+    const { user, loading } = useAuth();
 
     const today = useMemo(() => todayISO(), []);
-    const apiUrl = useMemo(() => process.env.NEXT_PUBLIC_API_URL || "", []);
+
+    const [pain, setPain] = useState<number | null>(null); // ✅ leer als Standard
+    const [energy, setEnergy] = useState<(typeof energyOptions)[number] | null>(
+        null
+    );
+    const [note, setNote] = useState("");
+
+    const [saveLoading, setSaveLoading] = useState(false);
+    const [saveError, setSaveError] = useState<string | null>(null);
+    const [saveSuccess, setSaveSuccess] = useState<string | null>(null);
 
     useEffect(() => {
         if (!loading && !user) router.replace("/login");
     }, [loading, user, router]);
 
-    useEffect(() => {
-        if (!user) return;
-
-        let cancelled = false;
-        setTodayError(null);
-        setTodayLoading(true);
-
-        (async () => {
-            try {
-                const qs = new URLSearchParams({
-                    from: today,
-                    to: today,
-                    per_page: "1",
-                }).toString();
-
-                const res = await api.get<SymptomsIndexResponse>(
-                    `/api/symptoms?${qs}`
-                );
-
-                const has = Array.isArray(res?.data) && res.data.length > 0;
-                if (!cancelled) setLoggedToday(has);
-            } catch (err) {
-                if (!cancelled)
-                    setTodayError(
-                        errorMessage(err, "Failed to load today's status")
-                    );
-            } finally {
-                if (!cancelled) setTodayLoading(false);
-            }
-        })();
-
-        return () => {
-            cancelled = true;
-        };
-    }, [user, today]);
-
-    async function downloadReport(days: 7 | 30) {
-        setReportError(null);
-        setReportLoading(days === 7 ? "7" : "30");
-
-        try {
-            const period_end = today;
-            const period_start = addDaysISO(today, -(days - 1));
-
-            const report = await createReport({ period_start, period_end });
-
-            if (!apiUrl) throw new Error("NEXT_PUBLIC_API_URL is not set");
-
-            window.location.href = `${apiUrl}/reports/${report.id}/download`;
-        } catch (err) {
-            setReportError(errorMessage(err, "Failed to generate report"));
-        } finally {
-            setReportLoading(null);
-        }
-    }
-
     if (loading) {
         return (
-            <main className="mx-auto w-full max-w-3xl px-6 py-10">
+            <main>
                 <p className="text-sm text-zinc-400">Loading…</p>
             </main>
         );
@@ -123,130 +68,226 @@ export default function DashboardPage() {
 
     if (!user) return null;
 
+    async function saveCheckIn() {
+        setSaveError(null);
+        setSaveSuccess(null);
+
+        if (pain === null) {
+            setSaveError("Please select a pain level (1–10).");
+            return;
+        }
+
+        setSaveLoading(true);
+
+        const payload = {
+            log_date: today,
+            pain_intensity: pain,
+            energy_level: energy ? energy.toLowerCase() : undefined,
+            notes: note.trim() ? note.trim() : undefined,
+        };
+
+        try {
+            await createSymptomLog(payload);
+            setSaveSuccess("Saved.");
+        } catch (err) {
+            if (err instanceof ApiException && err.status === 409) {
+                try {
+                    const existing = await listSymptomLogsForDate(today);
+                    const target = existing[0];
+                    if (!target) throw err;
+
+                    await updateSymptomLog(target.id, payload);
+                    setSaveSuccess("Updated.");
+                } catch (inner) {
+                    setSaveError(
+                        errorMessage(inner, "Failed to update check-in")
+                    );
+                } finally {
+                    setSaveLoading(false);
+                }
+                return;
+            }
+
+            setSaveError(errorMessage(err, "Failed to save check-in"));
+        } finally {
+            setSaveLoading(false);
+        }
+    }
+
+    function skipToday() {
+        setPain(null);
+        setEnergy(null);
+        setNote("");
+        setSaveError(null);
+        setSaveSuccess(null);
+    }
+
     return (
-        <main className="mx-auto w-full max-w-3xl px-6 py-10">
-            <div className="flex items-start justify-between gap-4">
+        <main className="space-y-6">
+            <header className="pt-1">
+                <div className="flex items-start justify-between">
+                    <button
+                        type="button"
+                        onClick={() => router.back()}
+                        className="h-10 w-10 rounded-full border border-zinc-800 text-zinc-200 hover:border-zinc-700"
+                        aria-label="Back"
+                        title="Back"
+                    >
+                        <span className="text-xl">‹</span>
+                    </button>
+
+                    <div className="text-right">
+                        <p className="text-[11px] tracking-widest text-zinc-500">
+                            TODAY
+                        </p>
+                        <p className="text-sm text-zinc-300">
+                            {formatHeaderDate(today)}
+                        </p>
+                    </div>
+                </div>
+            </header>
+
+            <section className="space-y-2">
+                <h1 className="text-3xl font-semibold tracking-tight text-zinc-100">
+                    How are you feeling today?
+                </h1>
+                <p className="text-sm text-zinc-400">
+                    A quick check-in. No pressure.
+                </p>
+            </section>
+
+            <section className="space-y-3">
                 <div>
-                    <h1 className="text-2xl font-semibold tracking-tight text-zinc-100">
-                        Dashboard
-                    </h1>
-                    <p className="mt-2 text-sm text-zinc-400">
-                        Welcome back{user.name ? `, ${user.name}` : ""}.
+                    <p className="text-sm font-medium text-zinc-100">
+                        Pain level
+                    </p>
+                    <p className="text-xs text-zinc-400">
+                        How intense was any discomfort?
                     </p>
                 </div>
 
-                <button
-                    onClick={async () => {
-                        await logout();
-                        router.replace("/login");
-                    }}
-                    className="inline-flex h-9 items-center justify-center rounded-md border border-zinc-800 bg-zinc-950 px-3 text-sm text-zinc-200 hover:border-zinc-700"
-                >
-                    Logout
-                </button>
-            </div>
-
-            <div className="mt-8 grid gap-4">
-                <section className="rounded-lg border border-zinc-900 bg-zinc-950 p-4">
-                    <div className="flex items-start justify-between gap-4">
-                        <div>
-                            <h2 className="text-sm font-medium text-zinc-100">
-                                Symptoms
-                            </h2>
-                            <p className="mt-1 text-xs text-zinc-400">
-                                Track pain, mood and energy over time.
-                            </p>
+                <div className="rounded-2xl border border-zinc-900 bg-zinc-950 p-5">
+                    <div className="text-center">
+                        <div className="text-4xl font-semibold text-zinc-500">
+                            {pain ?? "—"}
                         </div>
-
-                        <Link
-                            href="/symptoms"
-                            className="inline-flex h-9 items-center justify-center rounded-md bg-zinc-100 px-3 text-sm font-medium text-zinc-950 hover:bg-white"
-                        >
-                            Open
-                        </Link>
                     </div>
 
-                    <div className="mt-4">
-                        {todayError ? (
-                            <p className="rounded-md border border-red-900/40 bg-red-950/40 px-3 py-2 text-sm text-red-200">
-                                {todayError}
-                            </p>
-                        ) : todayLoading || loggedToday === null ? (
-                            <p className="text-sm text-zinc-400">
-                                Checking today…
-                            </p>
-                        ) : loggedToday ? (
-                            <div className="flex items-center justify-between gap-3 rounded-md border border-zinc-900 bg-black/20 px-3 py-3">
-                                <p className="text-sm text-zinc-200">
-                                    Logged today ✅
-                                </p>
-                                <Link
-                                    href={`/symptoms?date=${today}`}
-                                    className="text-sm text-zinc-100 underline underline-offset-4 hover:text-white"
-                                >
-                                    View
-                                </Link>
-                            </div>
-                        ) : (
-                            <div className="flex items-center justify-between gap-3 rounded-md border border-zinc-900 bg-black/20 px-3 py-3">
-                                <p className="text-sm text-zinc-200">
-                                    No log yet today
-                                </p>
-                                <Link
-                                    href={`/symptoms/new?date=${today}`}
-                                    className="inline-flex h-9 items-center justify-center rounded-md bg-zinc-100 px-3 text-sm font-medium text-zinc-950 hover:bg-white"
-                                >
-                                    Log today
-                                </Link>
-                            </div>
+                    <div className="mt-4 flex items-center justify-between gap-2">
+                        {Array.from({ length: 10 }, (_, i) => i + 1).map(
+                            (n) => {
+                                const active = pain === n;
+                                return (
+                                    <button
+                                        key={n}
+                                        type="button"
+                                        onClick={() => setPain(n)}
+                                        className={[
+                                            "h-2.5 w-2.5 rounded-full transition",
+                                            active
+                                                ? "bg-zinc-100"
+                                                : "bg-zinc-800 hover:bg-zinc-700",
+                                        ].join(" ")}
+                                        aria-label={`Pain ${n}`}
+                                        aria-pressed={active}
+                                    />
+                                );
+                            }
                         )}
                     </div>
 
-                    <p className="mt-4 text-xs text-zinc-500">
-                        Logged in as{" "}
-                        <span className="text-zinc-300">{user.email}</span>
-                    </p>
-                </section>
-
-                <section className="rounded-lg border border-zinc-900 bg-zinc-950 p-4">
-                    <h2 className="text-sm font-medium text-zinc-100">
-                        Reports (PDF)
-                    </h2>
-                    <p className="mt-1 text-xs text-zinc-400">
-                        Download a summary for your last days to share or
-                        review.
-                    </p>
-
-                    {reportError && (
-                        <p className="mt-4 rounded-md border border-red-900/40 bg-red-950/40 px-3 py-2 text-sm text-red-200">
-                            {reportError}
-                        </p>
-                    )}
-
-                    <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-                        <button
-                            type="button"
-                            onClick={() => void downloadReport(7)}
-                            disabled={reportLoading !== null}
-                            className="inline-flex h-9 items-center justify-center rounded-md border border-zinc-800 px-3 text-sm text-zinc-200 hover:border-zinc-700 disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                            {reportLoading === "7"
-                                ? "Preparing…"
-                                : "Last 7 days"}
-                        </button>
-
-                        <button
-                            type="button"
-                            onClick={() => void downloadReport(30)}
-                            disabled={reportLoading !== null}
-                            className="inline-flex h-9 items-center justify-center rounded-md border border-zinc-800 px-3 text-sm text-zinc-200 hover:border-zinc-700 disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                            {reportLoading === "30"
-                                ? "Preparing…"
-                                : "Last 30 days"}
-                        </button>
+                    <div className="mt-3 flex items-center justify-between text-xs text-zinc-500">
+                        <span>None</span>
+                        <span>Severe</span>
                     </div>
-                </section>
+                </div>
+            </section>
+
+            <section className="space-y-3">
+                <div>
+                    <p className="text-sm font-medium text-zinc-100">Energy</p>
+                    <p className="text-xs text-zinc-400">
+                        How are you feeling overall?
+                    </p>
+                </div>
+
+                <div className="space-y-2">
+                    {energyOptions.map((opt) => {
+                        const active = energy === opt;
+                        return (
+                            <button
+                                key={opt}
+                                type="button"
+                                onClick={() =>
+                                    setEnergy((prev) =>
+                                        prev === opt ? null : opt
+                                    )
+                                }
+                                className={[
+                                    "w-full rounded-2xl border px-4 py-3 text-left text-sm transition",
+                                    active
+                                        ? "border-zinc-100 bg-zinc-900 text-zinc-100"
+                                        : "border-zinc-900 bg-zinc-950 text-zinc-200 hover:border-zinc-800",
+                                ].join(" ")}
+                                aria-pressed={active}
+                            >
+                                {opt}
+                            </button>
+                        );
+                    })}
+                </div>
+            </section>
+
+            <section className="space-y-2">
+                <div className="flex items-baseline gap-2">
+                    <p className="text-sm font-medium text-zinc-100">Note</p>
+                    <p className="text-xs text-zinc-500">(optional)</p>
+                </div>
+
+                <textarea
+                    value={note}
+                    onChange={(e) => setNote(e.target.value)}
+                    rows={4}
+                    className="w-full rounded-2xl border border-zinc-900 bg-zinc-950 px-4 py-3 text-sm text-zinc-100 outline-none focus:border-zinc-700"
+                    placeholder="Write here if you’d like…"
+                />
+            </section>
+
+            {saveError && (
+                <div className="rounded-2xl border border-red-900/40 bg-red-950/40 px-4 py-3 text-sm text-red-200">
+                    {saveError}
+                </div>
+            )}
+            {saveSuccess && (
+                <div className="rounded-2xl border border-emerald-900/40 bg-emerald-950/30 px-4 py-3 text-sm text-emerald-200">
+                    {saveSuccess}
+                </div>
+            )}
+
+            <div className="space-y-3 pt-2">
+                <button
+                    type="button"
+                    onClick={() => void saveCheckIn()}
+                    disabled={saveLoading}
+                    className="inline-flex h-12 w-full items-center justify-center rounded-full bg-zinc-100 text-sm font-medium text-zinc-950 hover:bg-white disabled:cursor-not-allowed disabled:opacity-70"
+                >
+                    {saveLoading ? "Saving…" : "Save check-in"}
+                </button>
+
+                <Link
+                    href={`/symptoms/new?date=${today}`}
+                    className="inline-flex h-12 w-full items-center justify-center rounded-full border border-zinc-800 bg-zinc-950 text-sm font-medium text-zinc-200 hover:border-zinc-700"
+                >
+                    Add symptoms
+                </Link>
+
+                <button
+                    type="button"
+                    onClick={skipToday}
+                    className="w-full text-center text-xs text-zinc-500 hover:text-zinc-300"
+                >
+                    Skip for today
+                </button>
             </div>
         </main>
     );

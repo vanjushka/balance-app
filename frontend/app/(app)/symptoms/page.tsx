@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { listSymptomLogs, deleteSymptomLog, SymptomLog } from "@/lib/symptoms";
+import { listSymptomLogs, SymptomLog } from "@/lib/symptoms";
 import { ApiException } from "@/lib/api";
 
 function todayISO(): string {
@@ -13,24 +13,38 @@ function dateOnly(isoLike: string): string {
     return isoLike.slice(0, 10);
 }
 
-function formatDate(isoDay: string) {
+function ymKeyFromISO(isoDay: string): string {
+    return isoDay.slice(0, 7); // YYYY-MM
+}
+
+function monthLabelFromYM(ym: string): string {
+    const [y, m] = ym.split("-").map(Number);
+    const d = new Date(Date.UTC(y, (m ?? 1) - 1, 1));
+    return d.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+}
+
+function headerMonthLabelFromYM(ym: string): string {
+    const [y, m] = ym.split("-").map(Number);
+    const d = new Date(Date.UTC(y, (m ?? 1) - 1, 1));
+    return d.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+}
+
+function formatLongDate(isoDay: string): string {
     const d = new Date(`${isoDay}T00:00:00`);
     return d.toLocaleDateString(undefined, {
-        weekday: "short",
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
+        weekday: "long",
+        month: "long",
+        day: "numeric",
     });
 }
 
-function capitalize(s?: string | null) {
-    if (!s) return "—";
-    return s.charAt(0).toUpperCase() + s.slice(1);
-}
-
-function show(value?: string | number | null) {
-    if (value === undefined || value === null || value === "") return "—";
-    return String(value);
+function formatShortDate(isoDay: string): string {
+    const d = new Date(`${isoDay}T00:00:00`);
+    return d.toLocaleDateString(undefined, {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+    });
 }
 
 function errorMessage(err: unknown, fallback: string) {
@@ -39,30 +53,99 @@ function errorMessage(err: unknown, fallback: string) {
     return fallback;
 }
 
-function addDaysISO(iso: string, days: number): string {
-    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
-    if (!m) return iso;
+function addMonthsYM(ym: string, delta: number): string {
+    const [y, m] = ym.split("-").map(Number);
+    const dt = new Date(Date.UTC(y, (m ?? 1) - 1, 1));
+    dt.setUTCMonth(dt.getUTCMonth() + delta);
+    const yy = dt.getUTCFullYear();
+    const mm = String(dt.getUTCMonth() + 1).padStart(2, "0");
+    return `${yy}-${mm}`;
+}
 
-    const year = Number(m[1]);
-    const month = Number(m[2]);
-    const day = Number(m[3]);
+function daysInMonth(y: number, m1to12: number): number {
+    return new Date(Date.UTC(y, m1to12, 0)).getUTCDate();
+}
 
-    const dt = new Date(Date.UTC(year, month - 1, day));
-    dt.setUTCDate(dt.getUTCDate() + days);
+function weekdayIndexSundayFirst(
+    y: number,
+    m1to12: number,
+    day: number
+): number {
+    const dt = new Date(Date.UTC(y, m1to12 - 1, day));
+    return dt.getUTCDay(); // 0=Sun..6=Sat
+}
 
-    const y = dt.getUTCFullYear();
-    const mo = String(dt.getUTCMonth() + 1).padStart(2, "0");
-    const da = String(dt.getUTCDate()).padStart(2, "0");
-    return `${y}-${mo}-${da}`;
+function relativeLabel(isoDay: string): string | null {
+    const t = todayISO();
+    if (isoDay === t) return "Today";
+
+    const [y, m, d] = t.split("-").map(Number);
+    const base = new Date(Date.UTC(y, m - 1, d));
+    base.setUTCDate(base.getUTCDate() - 1);
+    const y2 = base.getUTCFullYear();
+    const m2 = String(base.getUTCMonth() + 1).padStart(2, "0");
+    const d2 = String(base.getUTCDate()).padStart(2, "0");
+    const yesterday = `${y2}-${m2}-${d2}`;
+
+    if (isoDay === yesterday) return "Yesterday";
+    return null;
+}
+
+function markersForLog(log: SymptomLog): {
+    highSymptoms: boolean;
+    mildSymptoms: boolean;
+    lowEnergy: boolean;
+} {
+    const pain =
+        typeof log.pain_intensity === "number" ? log.pain_intensity : null;
+
+    const tagsCount = Array.isArray(log.tags_json) ? log.tags_json.length : 0;
+
+    const lowEnergy =
+        log.energy_level === "depleted" || log.energy_level === "low";
+
+    // Entry exists if *any* tracked field has a value.
+    // (Used for edge-case: note-only day should still show mild.)
+    const hasAnyEntry =
+        (pain !== null && pain > 0) ||
+        tagsCount > 0 ||
+        (typeof log.notes === "string" && log.notes.trim().length > 0) ||
+        (typeof log.mood === "string" && log.mood.trim().length > 0) ||
+        typeof log.sleep_quality === "number" ||
+        typeof log.stress_level === "number" ||
+        (log.energy_level !== null && log.energy_level !== undefined);
+
+    // High = pain >= 6 OR tags >= 4
+    const highSymptoms = (pain !== null && pain >= 6) || tagsCount >= 4;
+
+    // Mild = only if not high, and either
+    // - pain 1..5 OR tags 1..3 OR (edge-case) entry exists (e.g. note-only day)
+    const mildSymptoms =
+        !highSymptoms &&
+        ((pain !== null && pain >= 1 && pain <= 5) ||
+            (tagsCount >= 1 && tagsCount <= 3) ||
+            (tagsCount === 0 && (pain === null || pain === 0) && hasAnyEntry));
+
+    return { highSymptoms, mildSymptoms, lowEnergy };
+}
+
+function summarizeTags(tags?: string[] | null): string | null {
+    if (!tags || tags.length === 0) return null;
+    return tags
+        .slice(0, 3)
+        .map((t) => t.replace(/_/g, " "))
+        .join(", ");
 }
 
 export default function SymptomsPage() {
     const [logs, setLogs] = useState<SymptomLog[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
 
     const [selectedDate, setSelectedDate] = useState<string>(todayISO());
+    const [selectedMonthYM, setSelectedMonthYM] = useState<string>(() =>
+        ymKeyFromISO(todayISO())
+    );
 
     const load = useCallback(async (signal?: AbortSignal) => {
         setError(null);
@@ -86,197 +169,337 @@ export default function SymptomsPage() {
         return () => controller.abort();
     }, [load]);
 
-    const logsForSelectedDate = useMemo(() => {
-        return logs
-            .filter((l) => dateOnly(l.log_date) === selectedDate)
-            .sort((a, b) => b.id - a.id);
-    }, [logs, selectedDate]);
+    // Map: YYYY-MM-DD -> log
+    const logByDay = useMemo(() => {
+        const map = new Map<string, SymptomLog>();
+        for (const l of logs) {
+            map.set(dateOnly(l.log_date), l);
+        }
+        return map;
+    }, [logs]);
 
-    const onDelete = useCallback(
-        async (id: number) => {
-            setError(null);
-            try {
-                await deleteSymptomLog(id);
-                setConfirmDeleteId(null);
-                await load();
-            } catch (err) {
-                setError(errorMessage(err, "Failed to delete log"));
-            }
-        },
-        [load]
-    );
+    const recentEntries = useMemo(() => {
+        const sorted = [...logs].sort((a, b) => {
+            const da = dateOnly(a.log_date);
+            const db = dateOnly(b.log_date);
+            return db.localeCompare(da);
+        });
+        return sorted.slice(0, 4);
+    }, [logs]);
 
-    const hasAnyLogs = logs.length > 0;
+    // Calendar days for selected month
+    const calendarCells = useMemo(() => {
+        const [yy, mm] = selectedMonthYM.split("-").map(Number);
+        const y = yy;
+        const m = mm;
+
+        const firstWeekday = weekdayIndexSundayFirst(y, m, 1); // 0..6
+        const totalDays = daysInMonth(y, m);
+
+        const cells: Array<
+            | { kind: "empty"; key: string }
+            | { kind: "day"; key: string; isoDay: string; dayNumber: number }
+        > = [];
+
+        for (let i = 0; i < firstWeekday; i++) {
+            cells.push({ kind: "empty", key: `e-${i}` });
+        }
+
+        for (let day = 1; day <= totalDays; day++) {
+            const isoDay = `${y}-${String(m).padStart(2, "0")}-${String(
+                day
+            ).padStart(2, "0")}`;
+            cells.push({ kind: "day", key: isoDay, isoDay, dayNumber: day });
+        }
+
+        return cells;
+    }, [selectedMonthYM]);
 
     return (
         <main className="space-y-6">
-            <header className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                    <h1 className="text-2xl font-semibold tracking-tight text-zinc-100">
-                        Timeline
-                    </h1>
-                    <p className="mt-1 text-sm text-zinc-400">
-                        Track your daily log over time.
-                    </p>
-                </div>
+            {/* Header */}
+            <header className="pt-1">
+                <div className="flex items-start justify-between">
+                    <button
+                        type="button"
+                        onClick={() => history.back()}
+                        className="h-10 w-10 rounded-full border border-zinc-800 text-zinc-200 hover:border-zinc-700"
+                        aria-label="Back"
+                        title="Back"
+                    >
+                        <span className="text-xl">‹</span>
+                    </button>
 
-                <Link
-                    href={`/symptoms/new?date=${selectedDate}`}
-                    className="inline-flex h-9 shrink-0 items-center justify-center rounded-xl bg-zinc-100 px-3 text-sm font-medium text-zinc-950 hover:bg-white"
-                >
-                    Add
-                </Link>
-            </header>
-
-            <section className="rounded-2xl border border-zinc-900 bg-zinc-950 p-4">
-                <div className="flex items-start justify-between gap-4">
-                    <div>
-                        <p className="text-sm font-medium text-zinc-100">
-                            Selected day
+                    <div className="text-center">
+                        <p className="text-[11px] tracking-widest text-zinc-500">
+                            HISTORY
                         </p>
-                        <p className="mt-1 text-xs text-zinc-400">
-                            {formatDate(selectedDate)}
+                        <p className="text-sm text-zinc-300">
+                            {headerMonthLabelFromYM(selectedMonthYM)}
                         </p>
-                    </div>
-                </div>
-
-                <div className="mt-4 space-y-3">
-                    <div className="grid grid-cols-3 gap-2">
-                        <button
-                            type="button"
-                            onClick={() =>
-                                setSelectedDate((prev) => addDaysISO(prev, -1))
-                            }
-                            className="inline-flex h-10 items-center justify-center rounded-xl border border-zinc-800 text-sm text-zinc-200 hover:border-zinc-700"
-                        >
-                            Prev
-                        </button>
-
-                        <input
-                            type="date"
-                            value={selectedDate}
-                            onChange={(e) => setSelectedDate(e.target.value)}
-                            className="h-10 w-full rounded-xl border border-zinc-800 bg-zinc-950 px-3 text-sm text-zinc-100 outline-none focus:border-zinc-600"
-                        />
-
-                        <button
-                            type="button"
-                            onClick={() =>
-                                setSelectedDate((prev) => addDaysISO(prev, 1))
-                            }
-                            className="inline-flex h-10 items-center justify-center rounded-xl border border-zinc-800 text-sm text-zinc-200 hover:border-zinc-700"
-                        >
-                            Next
-                        </button>
                     </div>
 
                     <button
                         type="button"
-                        onClick={() => setSelectedDate(todayISO())}
-                        className="inline-flex h-10 w-full items-center justify-center rounded-xl border border-zinc-800 text-sm text-zinc-200 hover:border-zinc-700"
+                        className="h-10 w-10 rounded-full border border-zinc-800 text-zinc-200 hover:border-zinc-700"
+                        aria-label="More"
+                        title="More"
                     >
-                        Today
+                        <span className="text-xl">⋯</span>
                     </button>
+                </div>
+            </header>
+
+            <section className="space-y-2">
+                <h1 className="text-3xl font-semibold tracking-tight text-zinc-100">
+                    Your symptom timeline
+                </h1>
+                <p className="text-sm text-zinc-400">
+                    A gentle overview of patterns and changes over time.
+                </p>
+            </section>
+
+            {/* Month selector pill */}
+            <section className="rounded-2xl border border-zinc-900 bg-zinc-950 p-4">
+                <div className="flex items-center justify-between">
+                    <button
+                        type="button"
+                        onClick={() =>
+                            setSelectedMonthYM((prev) => addMonthsYM(prev, -1))
+                        }
+                        className="h-10 w-10 rounded-full border border-zinc-800 text-zinc-200 hover:border-zinc-700"
+                        aria-label="Previous month"
+                        title="Previous month"
+                    >
+                        ‹
+                    </button>
+
+                    <p className="text-sm font-medium text-zinc-100">
+                        {monthLabelFromYM(selectedMonthYM)}
+                    </p>
+
+                    <button
+                        type="button"
+                        onClick={() =>
+                            setSelectedMonthYM((prev) => addMonthsYM(prev, 1))
+                        }
+                        className="h-10 w-10 rounded-full border border-zinc-800 text-zinc-200 hover:border-zinc-700"
+                        aria-label="Next month"
+                        title="Next month"
+                    >
+                        ›
+                    </button>
+                </div>
+
+                {/* Calendar */}
+                <div className="mt-4 rounded-2xl border border-zinc-900 bg-black/20 p-4">
+                    <div className="grid grid-cols-7 gap-2 text-center text-[11px] text-zinc-500">
+                        <div>S</div>
+                        <div>M</div>
+                        <div>T</div>
+                        <div>W</div>
+                        <div>T</div>
+                        <div>F</div>
+                        <div>S</div>
+                    </div>
+
+                    <div className="mt-3 grid grid-cols-7 gap-2">
+                        {calendarCells.map((cell) => {
+                            if (cell.kind === "empty") {
+                                return <div key={cell.key} className="h-10" />;
+                            }
+
+                            const isSelected = cell.isoDay === selectedDate;
+                            const log = logByDay.get(cell.isoDay);
+                            const markers = log ? markersForLog(log) : null;
+
+                            return (
+                                <button
+                                    key={cell.key}
+                                    type="button"
+                                    onClick={() => setSelectedDate(cell.isoDay)}
+                                    className={[
+                                        "h-10 rounded-xl border text-sm transition",
+                                        isSelected
+                                            ? "border-zinc-100 bg-zinc-900 text-zinc-100"
+                                            : "border-zinc-900 bg-zinc-950 text-zinc-200 hover:border-zinc-800",
+                                    ].join(" ")}
+                                    aria-label={`Select ${cell.isoDay}`}
+                                    aria-pressed={isSelected}
+                                >
+                                    <div className="flex h-full flex-col items-center justify-center gap-1">
+                                        <span className="leading-none">
+                                            {cell.dayNumber}
+                                        </span>
+
+                                        {/* marker row (up to 3 dots) */}
+                                        <span className="flex items-center gap-1">
+                                            <span
+                                                className={[
+                                                    "h-1.5 w-1.5 rounded-full",
+                                                    markers?.highSymptoms
+                                                        ? "bg-zinc-200"
+                                                        : "bg-transparent",
+                                                ].join(" ")}
+                                                aria-hidden
+                                            />
+                                            <span
+                                                className={[
+                                                    "h-1.5 w-1.5 rounded-full",
+                                                    markers?.mildSymptoms
+                                                        ? "bg-zinc-500"
+                                                        : "bg-transparent",
+                                                ].join(" ")}
+                                                aria-hidden
+                                            />
+                                            <span
+                                                className={[
+                                                    "h-1.5 w-1.5 rounded-full",
+                                                    markers?.lowEnergy
+                                                        ? "bg-zinc-400"
+                                                        : "bg-transparent",
+                                                ].join(" ")}
+                                                aria-hidden
+                                            />
+                                        </span>
+                                    </div>
+                                </button>
+                            );
+                        })}
+                    </div>
                 </div>
             </section>
 
-            {error && (
-                <p className="rounded-xl border border-red-900/40 bg-red-950/40 px-3 py-2 text-sm text-red-200">
-                    {error}
-                </p>
-            )}
+            {/* Legend */}
+            <section className="flex items-center justify-between gap-3 text-xs text-zinc-500">
+                <div className="flex items-center gap-2">
+                    <span className="h-2 w-2 rounded-full bg-zinc-200" />
+                    <span>High symptoms</span>
+                </div>
+                <div className="flex items-center gap-2">
+                    <span className="h-2 w-2 rounded-full bg-zinc-500" />
+                    <span>Mild symptoms</span>
+                </div>
+                <div className="flex items-center gap-2">
+                    <span className="h-2 w-2 rounded-full bg-zinc-400" />
+                    <span>Low energy</span>
+                </div>
+            </section>
 
-            {loading ? (
-                <p className="text-sm text-zinc-400">Loading…</p>
-            ) : !hasAnyLogs ? (
-                <p className="text-sm text-zinc-400">
-                    No logs yet. Start by adding one.
-                </p>
-            ) : logsForSelectedDate.length === 0 ? (
-                <p className="text-sm text-zinc-400">
-                    No logs for this day. Add one to start tracking.
-                </p>
-            ) : (
-                <ul className="space-y-3">
-                    {logsForSelectedDate.map((l) => (
-                        <li
-                            key={l.id}
-                            className="rounded-2xl border border-zinc-900 bg-zinc-950 p-4"
-                        >
-                            <div className="flex items-start justify-between gap-4">
-                                <div className="min-w-0">
-                                    <p className="text-sm font-medium text-zinc-100">
-                                        {formatDate(dateOnly(l.log_date))}
-                                    </p>
-                                    <p className="mt-1 text-xs text-zinc-400">
-                                        Mood: {capitalize(l.mood)} · Energy:{" "}
-                                        {show(l.energy_level)}
-                                    </p>
-                                </div>
+            {/* Recent entries */}
+            <section className="space-y-3">
+                <h2 className="text-base font-semibold text-zinc-100">
+                    Recent entries
+                </h2>
 
-                                {confirmDeleteId === l.id ? (
-                                    <div className="flex items-center gap-2">
-                                        <button
-                                            onClick={() => void onDelete(l.id)}
-                                            className="inline-flex h-8 items-center justify-center rounded-xl bg-red-600 px-3 text-xs font-medium text-white hover:bg-red-500"
-                                        >
-                                            Confirm
-                                        </button>
-                                        <button
-                                            onClick={() =>
-                                                setConfirmDeleteId(null)
-                                            }
-                                            className="inline-flex h-8 items-center justify-center rounded-xl border border-zinc-800 px-3 text-xs text-zinc-200 hover:border-zinc-700"
-                                        >
-                                            Cancel
-                                        </button>
-                                    </div>
-                                ) : (
-                                    <button
-                                        onClick={() => setConfirmDeleteId(l.id)}
-                                        className="inline-flex h-8 items-center justify-center rounded-xl border border-zinc-800 px-3 text-xs text-zinc-200 hover:border-zinc-700"
+                {error && (
+                    <div className="rounded-2xl border border-red-900/40 bg-red-950/40 px-4 py-3 text-sm text-red-200">
+                        {error}
+                    </div>
+                )}
+
+                {loading ? (
+                    <p className="text-sm text-zinc-400">Loading…</p>
+                ) : recentEntries.length === 0 ? (
+                    <div className="rounded-2xl border border-zinc-900 bg-zinc-950 p-4">
+                        <p className="text-sm text-zinc-300">No entries yet.</p>
+                        <p className="mt-1 text-xs text-zinc-500">
+                            Start by adding symptoms or a quick check-in.
+                        </p>
+                    </div>
+                ) : (
+                    <ul className="space-y-3">
+                        {recentEntries.map((l) => {
+                            const isoDay = dateOnly(l.log_date);
+                            const rel = relativeLabel(isoDay);
+
+                            const tagsLine = summarizeTags(l.tags_json);
+                            const showPain =
+                                typeof l.pain_intensity === "number"
+                                    ? l.pain_intensity
+                                    : null;
+
+                            const showEnergy =
+                                typeof l.energy_level === "string" &&
+                                l.energy_level
+                                    ? l.energy_level
+                                    : null;
+
+                            return (
+                                <li key={l.id}>
+                                    <Link
+                                        href={`/symptoms/new?date=${encodeURIComponent(
+                                            isoDay
+                                        )}`}
+                                        className="block rounded-2xl border border-zinc-900 bg-zinc-950 p-4 hover:border-zinc-800"
                                     >
-                                        Delete
-                                    </button>
-                                )}
-                            </div>
+                                        <div className="flex items-start justify-between gap-3">
+                                            <div className="min-w-0">
+                                                <p className="text-sm font-medium text-zinc-100">
+                                                    {rel ??
+                                                        formatShortDate(isoDay)}
+                                                </p>
+                                                <p className="mt-1 text-xs text-zinc-500">
+                                                    {formatLongDate(isoDay)}
+                                                </p>
+                                            </div>
+                                            <span className="text-zinc-400">
+                                                ›
+                                            </span>
+                                        </div>
 
-                            <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                                <div className="rounded-xl border border-zinc-900 bg-black/20 px-3 py-2">
-                                    <p className="text-[11px] text-zinc-400">
-                                        Pain
-                                    </p>
-                                    <p className="mt-1 text-sm font-medium text-zinc-100">
-                                        {show(l.pain_intensity)}/10
-                                    </p>
-                                </div>
-                                <div className="rounded-xl border border-zinc-900 bg-black/20 px-3 py-2">
-                                    <p className="text-[11px] text-zinc-400">
-                                        Sleep
-                                    </p>
-                                    <p className="mt-1 text-sm font-medium text-zinc-100">
-                                        {show(l.sleep_quality)}/10
-                                    </p>
-                                </div>
-                                <div className="rounded-xl border border-zinc-900 bg-black/20 px-3 py-2">
-                                    <p className="text-[11px] text-zinc-400">
-                                        Stress
-                                    </p>
-                                    <p className="mt-1 text-sm font-medium text-zinc-100">
-                                        {show(l.stress_level)}/10
-                                    </p>
-                                </div>
-                            </div>
+                                        <div className="mt-3 space-y-2 text-sm text-zinc-200">
+                                            {showPain !== null ? (
+                                                <div className="flex items-center gap-2">
+                                                    <span className="h-2 w-2 rounded-full bg-zinc-400" />
+                                                    <span>
+                                                        Pain level: {showPain}
+                                                    </span>
+                                                </div>
+                                            ) : null}
 
-                            {l.notes ? (
-                                <p className="mt-4 text-sm text-zinc-200/90">
-                                    {l.notes}
-                                </p>
-                            ) : null}
-                        </li>
-                    ))}
-                </ul>
-            )}
+                                            {tagsLine ? (
+                                                <div className="flex items-center gap-2">
+                                                    <span className="h-2 w-2 rounded-full bg-zinc-500" />
+                                                    <span>{tagsLine}</span>
+                                                </div>
+                                            ) : null}
+
+                                            {showEnergy ? (
+                                                <div className="flex items-center gap-2">
+                                                    <span className="h-2 w-2 rounded-full bg-zinc-300" />
+                                                    <span>
+                                                        Energy: {showEnergy}
+                                                    </span>
+                                                </div>
+                                            ) : null}
+                                        </div>
+                                    </Link>
+                                </li>
+                            );
+                        })}
+                    </ul>
+                )}
+            </section>
+
+            {/* CTAs */}
+            <section className="space-y-3 pt-2">
+                <Link
+                    href="/insights"
+                    className="inline-flex h-12 w-full items-center justify-center rounded-full border border-zinc-800 bg-zinc-950 text-sm font-medium text-zinc-200 hover:border-zinc-700"
+                >
+                    View insights
+                </Link>
+
+                <Link
+                    href={`/symptoms/new?date=${encodeURIComponent(
+                        selectedDate
+                    )}`}
+                    className="inline-flex h-12 w-full items-center justify-center rounded-full bg-zinc-100 text-sm font-medium text-zinc-950 hover:bg-white"
+                >
+                    Add symptoms
+                </Link>
+            </section>
         </main>
     );
 }
