@@ -13,7 +13,7 @@ type Tab = {
 const tabs: Tab[] = [
     { href: "/dashboard", label: "Home" },
     { href: "/symptoms", label: "Timeline" },
-    { href: "/reports", label: "Insights" },
+    { href: "/insights", label: "Insights" },
     { href: "/profile", label: "Profile" },
 ];
 
