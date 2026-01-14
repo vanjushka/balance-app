@@ -9,6 +9,8 @@ import {
     createSymptomLog,
     listSymptomLogsForDate,
     updateSymptomLog,
+    type CreateSymptomLogPayload,
+    type EnergyLevel,
 } from "@/lib/symptoms";
 
 function todayISO(): string {
@@ -30,13 +32,13 @@ function errorMessage(err: unknown, fallback: string) {
     return fallback;
 }
 
-const energyOptions = [
-    "Depleted",
-    "Low",
-    "Moderate",
-    "Good",
-    "Energized",
-] as const;
+const ENERGY_OPTIONS: Array<{ label: string; value: EnergyLevel }> = [
+    { label: "Depleted", value: "depleted" },
+    { label: "Low", value: "low" },
+    { label: "Moderate", value: "moderate" },
+    { label: "Good", value: "good" },
+    { label: "Energized", value: "energized" },
+];
 
 export default function DashboardPage() {
     const router = useRouter();
@@ -44,10 +46,8 @@ export default function DashboardPage() {
 
     const today = useMemo(() => todayISO(), []);
 
-    const [pain, setPain] = useState<number | null>(null); // ✅ leer als Standard
-    const [energy, setEnergy] = useState<(typeof energyOptions)[number] | null>(
-        null
-    );
+    const [pain, setPain] = useState<number | null>(null);
+    const [energy, setEnergy] = useState<EnergyLevel | null>(null);
     const [note, setNote] = useState("");
 
     const [saveLoading, setSaveLoading] = useState(false);
@@ -79,11 +79,11 @@ export default function DashboardPage() {
 
         setSaveLoading(true);
 
-        const payload = {
+        const payload: CreateSymptomLogPayload = {
             log_date: today,
             pain_intensity: pain,
-            energy_level: energy ? energy.toLowerCase() : undefined,
-            notes: note.trim() ? note.trim() : undefined,
+            energy_level: energy ?? null,
+            notes: note.trim() ? note.trim() : null,
         };
 
         try {
@@ -212,15 +212,15 @@ export default function DashboardPage() {
                 </div>
 
                 <div className="space-y-2">
-                    {energyOptions.map((opt) => {
-                        const active = energy === opt;
+                    {ENERGY_OPTIONS.map((opt) => {
+                        const active = energy === opt.value;
                         return (
                             <button
-                                key={opt}
+                                key={opt.value}
                                 type="button"
                                 onClick={() =>
                                     setEnergy((prev) =>
-                                        prev === opt ? null : opt
+                                        prev === opt.value ? null : opt.value
                                     )
                                 }
                                 className={[
@@ -231,7 +231,7 @@ export default function DashboardPage() {
                                 ].join(" ")}
                                 aria-pressed={active}
                             >
-                                {opt}
+                                {opt.label}
                             </button>
                         );
                     })}

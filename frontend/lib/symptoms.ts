@@ -1,30 +1,47 @@
 // lib/symptoms.ts
 import { api } from "@/lib/api";
 
+export type EnergyLevel =
+    | "depleted"
+    | "low"
+    | "moderate"
+    | "good"
+    | "energized";
+
+export type Mood = "calm" | "stressed" | "sad" | "happy";
+
+export type SymptomTag = string;
+
 export type SymptomLog = {
     id: number;
     user_id: number;
+
+    // casted in Laravel as date:Y-m-d
     log_date: string;
-    pain_intensity?: number | null;
-    energy_level?: string | null;
-    mood?: string | null;
-    sleep_quality?: number | null;
-    stress_level?: number | null;
-    notes?: string | null;
-    tags_json?: string[] | null;
+
+    pain_intensity: number | null;
+    energy_level: EnergyLevel | null;
+    mood: Mood | null;
+
+    sleep_quality: number | null;
+    stress_level: number | null;
+
+    notes: string | null;
+    tags_json: SymptomTag[] | null;
+
     created_at: string;
     updated_at: string;
 };
 
 export type CreateSymptomLogPayload = {
     log_date: string;
-    pain_intensity?: number;
-    energy_level?: string;
-    mood?: string;
-    sleep_quality?: number;
-    stress_level?: number;
-    notes?: string;
-    tags_json?: string[];
+    pain_intensity?: number | null;
+    energy_level?: EnergyLevel | null;
+    mood?: Mood | null;
+    sleep_quality?: number | null;
+    stress_level?: number | null;
+    notes?: string | null;
+    tags_json?: SymptomTag[] | null;
 };
 
 export type UpdateSymptomLogPayload = Partial<CreateSymptomLogPayload>;
