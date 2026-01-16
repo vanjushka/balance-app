@@ -1,68 +1,30 @@
 // lib/insights.ts
 import { api } from "@/lib/api";
 
-/**
- * ---- Core response types ----
- */
+export type InsightsRange = 30 | 90;
 
-export type InsightCounts = {
-    logged_days: number;
-    range_days: number;
+export type EnergyLevel =
+    | "depleted"
+    | "low"
+    | "moderate"
+    | "good"
+    | "energized";
+export type Mood = "calm" | "stressed" | "sad" | "happy";
+
+export type InsightsMetrics = {
+    counts: { logged_days: number; range_days: number };
+    pain: { avg: number | null; max: number | null; high_days: number };
+    energy: {
+        low_days: number;
+        distribution: Record<EnergyLevel, number>;
+    };
+    mood: {
+        distribution: Partial<Record<Mood, number>> & Record<string, number>;
+    };
+    stress: { avg: number | null; high_days: number };
+    sleep: { avg: number | null };
+    tags: { top: Array<{ tag: string; count: number }> };
 };
-
-export type InsightPain = {
-    avg: number | null;
-    max: number | null;
-    high_days: number;
-};
-
-export type InsightEnergy = {
-    low_days: number;
-    distribution: Record<
-        "depleted" | "low" | "moderate" | "good" | "energized",
-        number
-    >;
-};
-
-export type InsightMood = {
-    distribution: Record<"calm" | "stressed" | "sad" | "happy", number>;
-};
-
-export type InsightStress = {
-    avg: number | null;
-    high_days: number;
-};
-
-export type InsightSleep = {
-    avg: number | null;
-};
-
-export type InsightTag = {
-    tag: string;
-    count: number;
-};
-
-export type InsightTags = {
-    top: InsightTag[];
-};
-
-/**
- * ---- Main data payload ----
- */
-
-export type InsightsData = {
-    counts: InsightCounts;
-    pain: InsightPain;
-    energy: InsightEnergy;
-    mood: InsightMood;
-    stress: InsightStress;
-    sleep: InsightSleep;
-    tags: InsightTags;
-};
-
-/**
- * ---- Meta ----
- */
 
 export type InsightsMeta = {
     range_days: number;
@@ -72,19 +34,30 @@ export type InsightsMeta = {
     generated_at: string;
 };
 
-/**
- * ---- Full API response ----
- */
-
 export type InsightsResponse = {
-    data: InsightsData;
+    data: InsightsMetrics;
     meta: InsightsMeta;
 };
 
-/**
- * ---- API call ----
- */
-
-export async function getInsights(range: 30 | 90): Promise<InsightsResponse> {
+export async function getInsights(
+    range: InsightsRange
+): Promise<InsightsResponse> {
     return api.get<InsightsResponse>(`/api/insights?range=${range}`);
+}
+
+export type InsightsSummaryResponse = {
+    data: {
+        summary: string;
+        bullets: string[];
+        disclaimer: string;
+    };
+    meta: InsightsMeta;
+};
+
+export async function getInsightsSummary(
+    range: InsightsRange
+): Promise<InsightsSummaryResponse> {
+    return api.post<InsightsSummaryResponse>("/api/insights/summary", {
+        range,
+    });
 }

@@ -114,4 +114,5 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/reports/{id}', [ReportsController::class, 'destroy'])->whereNumber('id');
 
     Route::get('/insights', [InsightsController::class, 'show']);
+    Route::post('/insights/summary', [InsightsController::class, 'summary']);
 });
