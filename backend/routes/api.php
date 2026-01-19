@@ -11,6 +11,8 @@ use App\Controllers\CommentsController;
 use App\Controllers\ReportsController;
 use App\Controllers\InsightsController;
 use App\Controllers\CommunityPatternsController;
+use App\Controllers\ProfileController;
+
 
 
 /*
@@ -120,5 +122,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/insights/summary', [InsightsController::class, 'summary']);
     Route::get('/community/patterns', [CommunityPatternsController::class, 'show'])
         ->middleware('throttle:10,1');
+    Route::get('/profile/summary', [ProfileController::class, 'summary']);
+
 
 });

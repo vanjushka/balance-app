@@ -63,18 +63,18 @@ export async function getInsightsSummary(
 }
 
 /**
- * Shared patterns (community aggregation + AI)
+ * Shared patterns (community aggregation)
  * - Fully anonymized
- * - Returns exactly 3 short pattern statements for UI cards
+ * - Backend may return 3, but keep type flexible; UI can slice(0, 3).
  */
 export type SharedPatternsResponse = {
     data: {
-        patterns: [string, string, string];
+        patterns: string[];
         disclaimer: string;
     };
     meta: InsightsMeta & {
-        cached: boolean;
-        cohort_size?: number; // optional: number of users included in aggregation
+        cached?: boolean;
+        cohort_size?: number | null;
     };
 };
 

@@ -65,26 +65,31 @@ class UserController
     }
 
     /** Delete account (+ cleanup files like reports) */
-    public function destroy(Request $request)
-    {
-        $user = $request->user();
+public function destroy(Request $request)
+{
+    $user = $request->user();
 
-        // cleanup reports 
-        if (method_exists($user, 'reports')) {
-            foreach ($user->reports as $rep) {
-                if (!empty($rep->file_path)) {
-                    // if 'reports' disk not configured, use 'public'
-                    try {
-                        Storage::disk('reports')->delete($rep->file_path);
-                    } catch (\Throwable $e) {
-                        Storage::disk('public')->delete($rep->file_path);
-                    }
+    // 1. Logout & Session cleanup 
+    Auth::guard('web')->logout();
+    $request->session()->invalidate();
+    $request->session()->regenerateToken();
+
+    // 2. Cleanup reports / files 
+    if (method_exists($user, 'reports')) {
+        foreach ($user->reports as $rep) {
+            if (!empty($rep->file_path)) {
+                try {
+                    Storage::disk('reports')->delete($rep->file_path);
+                } catch (\Throwable $e) {
+                    Storage::disk('public')->delete($rep->file_path);
                 }
             }
         }
-
-        $user->delete();
-
-        return response()->json([], 204);
     }
+
+    // 3. Delete user (cascade)
+    $user->delete();
+
+    return response()->json(['message' => 'Account deleted'], 200);
+}
 }

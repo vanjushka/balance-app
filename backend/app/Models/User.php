@@ -22,6 +22,7 @@ class User extends Authenticatable
         'is_admin' => 'boolean',
     ];
 
+
     /** Hash password on set; keep if already hashed */
     public function setPasswordAttribute($value): void
     {

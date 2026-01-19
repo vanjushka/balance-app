@@ -284,7 +284,7 @@ export default function InsightsPage() {
 
     // Fetch Shared patterns when range changes AND we have enough local logs
     useEffect(() => {
-        if (logs.length < 7) {
+        if (logs.length <= 7) {
             setSharedError(null);
             setShared(null);
             setSharedLoading(false);
@@ -666,7 +666,7 @@ export default function InsightsPage() {
             </section>
 
             {/* Shared patterns (community, anonymized) */}
-            {logs.length >= 7 && (
+            {logs.length > 7 && (
                 <section className="mt-10 space-y-2">
                     <h2 className="text-3xl font-semibold tracking-tight text-zinc-100">
                         Shared patterns
@@ -689,16 +689,18 @@ export default function InsightsPage() {
                             </div>
                         ) : shared ? (
                             <>
-                                {shared.data.patterns.map((text, idx) => (
-                                    <div
-                                        key={idx}
-                                        className="rounded-3xl border border-zinc-900 bg-zinc-950 px-6 py-7"
-                                    >
-                                        <p className="text-base leading-relaxed text-zinc-400">
-                                            {text}
-                                        </p>
-                                    </div>
-                                ))}
+                                {shared.data.patterns
+                                    .slice(0, 3)
+                                    .map((text, idx) => (
+                                        <div
+                                            key={idx}
+                                            className="rounded-3xl border border-zinc-900 bg-zinc-950 px-6 py-7"
+                                        >
+                                            <p className="text-base leading-relaxed text-zinc-400">
+                                                {text}
+                                            </p>
+                                        </div>
+                                    ))}
 
                                 <p className="text-xs text-zinc-500">
                                     {shared.data.disclaimer}
