@@ -40,7 +40,7 @@ export type InsightsResponse = {
 };
 
 export async function getInsights(
-    range: InsightsRange
+    range: InsightsRange,
 ): Promise<InsightsResponse> {
     return api.get<InsightsResponse>(`/api/insights?range=${range}`);
 }
@@ -55,9 +55,33 @@ export type InsightsSummaryResponse = {
 };
 
 export async function getInsightsSummary(
-    range: InsightsRange
+    range: InsightsRange,
 ): Promise<InsightsSummaryResponse> {
     return api.post<InsightsSummaryResponse>("/api/insights/summary", {
         range,
     });
+}
+
+/**
+ * Shared patterns (community aggregation + AI)
+ * - Fully anonymized
+ * - Returns exactly 3 short pattern statements for UI cards
+ */
+export type SharedPatternsResponse = {
+    data: {
+        patterns: [string, string, string];
+        disclaimer: string;
+    };
+    meta: InsightsMeta & {
+        cached: boolean;
+        cohort_size?: number; // optional: number of users included in aggregation
+    };
+};
+
+export async function getSharedPatterns(
+    range: InsightsRange,
+): Promise<SharedPatternsResponse> {
+    return api.get<SharedPatternsResponse>(
+        `/api/community/patterns?range=${range}`,
+    );
 }

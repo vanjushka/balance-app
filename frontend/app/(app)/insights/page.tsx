@@ -9,6 +9,8 @@ import {
     getInsightsSummary,
     InsightsResponse,
     InsightsSummaryResponse,
+    getSharedPatterns,
+    SharedPatternsResponse,
 } from "@/lib/insights";
 
 type RangeDays = 30 | 90;
@@ -28,7 +30,7 @@ type ReportCreateResponse = {
     };
 };
 
-const DEBUG = false; // set true while dev, false before submit
+const DEBUG = false; // true while dev, false before submit
 
 function todayISO(): string {
     return new Date().toISOString().slice(0, 10);
@@ -79,9 +81,6 @@ function normalizeMood(m?: string | null): string | null {
     return s.length ? s : null;
 }
 
-/**
- * stress_level exists in DB. We read it safely without `any`.
- */
 function getStressLevel(log: SymptomLog): number | null {
     const v = (log as Record<string, unknown>)["stress_level"];
     return typeof v === "number" ? v : null;
@@ -89,7 +88,7 @@ function getStressLevel(log: SymptomLog): number | null {
 
 function labelStrength(
     occurrences: number,
-    totalLoggedDays: number
+    totalLoggedDays: number,
 ): { strength: InsightCard["strength"]; footnote: string } {
     const ratio = totalLoggedDays > 0 ? occurrences / totalLoggedDays : 0;
 
@@ -138,15 +137,20 @@ export default function InsightsPage() {
     const [logsLoading, setLogsLoading] = useState(true);
     const [logsError, setLogsError] = useState<string | null>(null);
 
-    // backend insights metrics
+    // backend insights metrics (for meta + logged_days, debug)
     const [insights, setInsights] = useState<InsightsResponse | null>(null);
     const [insightsLoading, setInsightsLoading] = useState(true);
     const [insightsError, setInsightsError] = useState<string | null>(null);
 
     // AI summary
     const [ai, setAi] = useState<InsightsSummaryResponse | null>(null);
-    const [aiLoading, setAiLoading] = useState(true);
+    const [aiLoading, setAiLoading] = useState(false);
     const [aiError, setAiError] = useState<string | null>(null);
+
+    // Shared patterns (community)
+    const [shared, setShared] = useState<SharedPatternsResponse | null>(null);
+    const [sharedLoading, setSharedLoading] = useState(false);
+    const [sharedError, setSharedError] = useState<string | null>(null);
 
     // PDF download
     const [downloadLoading, setDownloadLoading] = useState(false);
@@ -171,8 +175,10 @@ export default function InsightsPage() {
 
                 setLogs(
                     [...data].sort((a, b) =>
-                        dateOnly(b.log_date).localeCompare(dateOnly(a.log_date))
-                    )
+                        dateOnly(b.log_date).localeCompare(
+                            dateOnly(a.log_date),
+                        ),
+                    ),
                 );
             } catch (err) {
                 if (signal?.aborted) return;
@@ -182,7 +188,7 @@ export default function InsightsPage() {
                 if (!signal?.aborted) setLogsLoading(false);
             }
         },
-        [rangeDays]
+        [rangeDays],
     );
 
     const loadInsights = useCallback(
@@ -202,7 +208,7 @@ export default function InsightsPage() {
                 if (!signal?.aborted) setInsightsLoading(false);
             }
         },
-        [rangeDays]
+        [rangeDays],
     );
 
     const loadAi = useCallback(
@@ -217,14 +223,36 @@ export default function InsightsPage() {
             } catch (err) {
                 if (signal?.aborted) return;
                 setAiError(
-                    errorMessage(err, "Failed to generate AI reflection")
+                    errorMessage(err, "Failed to generate AI reflection"),
                 );
                 setAi(null);
             } finally {
                 if (!signal?.aborted) setAiLoading(false);
             }
         },
-        [rangeDays]
+        [rangeDays],
+    );
+
+    const loadShared = useCallback(
+        async (signal?: AbortSignal) => {
+            setSharedError(null);
+            setSharedLoading(true);
+
+            try {
+                const res = await getSharedPatterns(rangeDays);
+                if (signal?.aborted) return;
+                setShared(res);
+            } catch (err) {
+                if (signal?.aborted) return;
+                setSharedError(
+                    errorMessage(err, "Failed to load shared patterns"),
+                );
+                setShared(null);
+            } finally {
+                if (!signal?.aborted) setSharedLoading(false);
+            }
+        },
+        [rangeDays],
     );
 
     // Fetch logs + metrics on range change
@@ -235,23 +263,38 @@ export default function InsightsPage() {
         return () => c.abort();
     }, [loadLogs, loadInsights]);
 
-    // Fetch AI summary only when we have enough data (and range changes)
-    useEffect(() => {
-        const loggedDays = insights?.data?.counts?.logged_days ?? logs.length;
+    // Decide if AI should be fetched (enough check-ins)
+    const loggedDays = useMemo(() => {
+        return insights?.data?.counts?.logged_days ?? logs.length;
+    }, [insights?.data?.counts?.logged_days, logs.length]);
 
-        // If we don't have enough days, don't call AI
+    // Fetch AI summary when range changes AND we have enough data
+    useEffect(() => {
         if (loggedDays < 7) {
-            setAiLoading(false);
             setAiError(null);
             setAi(null);
+            setAiLoading(false);
             return;
         }
 
         const c = new AbortController();
         void loadAi(c.signal);
         return () => c.abort();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [rangeDays, insights?.data?.counts?.logged_days]);
+    }, [rangeDays, loggedDays, loadAi]);
+
+    // Fetch Shared patterns when range changes AND we have enough local logs
+    useEffect(() => {
+        if (logs.length < 7) {
+            setSharedError(null);
+            setShared(null);
+            setSharedLoading(false);
+            return;
+        }
+
+        const c = new AbortController();
+        void loadShared(c.signal);
+        return () => c.abort();
+    }, [rangeDays, logs.length, loadShared]);
 
     const cards = useMemo<InsightCard[]>(() => {
         const totalDays = logs.length;
@@ -281,12 +324,12 @@ export default function InsightsPage() {
             title: string,
             body: string,
             occurrences: number,
-            tone: InsightCard["tone"]
+            tone: InsightCard["tone"],
         ) => {
             if (occurrences < minObserved) return;
             const { strength, footnote } = labelStrength(
                 occurrences,
-                totalDays
+                totalDays,
             );
             out.push({
                 key,
@@ -305,47 +348,42 @@ export default function InsightsPage() {
             "Pain often appears with stress",
             "Higher pain tends to appear on high-stress days.",
             painAndStressDays,
-            "rose"
+            "rose",
         );
-
         addIf(
             "energy_low",
             "Low energy days repeat",
             "Low energy shows up multiple times.",
             lowEnergyDays,
-            "sage"
+            "sage",
         );
-
         addIf(
             "pain_high",
             "Higher pain days show up",
             "Pain levels were elevated on several days.",
             highPainDays,
-            "sand"
+            "sand",
         );
-
         addIf(
             "bloating",
             "Bloating tends to cluster",
             "Bloating appears on multiple days.",
             bloatingDays,
-            "sage"
+            "sage",
         );
-
         addIf(
             "acne",
             "Skin flare-ups recur",
             "Acne or breakouts were logged multiple times.",
             acneDays,
-            "rose"
+            "rose",
         );
-
         addIf(
             "mood_positive",
             "Calmer mood days appear",
             "Calm or happy mood appears multiple times.",
             moodPosDays,
-            "slate"
+            "slate",
         );
 
         return out.slice(0, 5);
@@ -363,7 +401,7 @@ export default function InsightsPage() {
                 {
                     period_start: from,
                     period_end: to,
-                }
+                },
             );
 
             if (!API_URL) throw new Error("NEXT_PUBLIC_API_URL is not set");
@@ -372,25 +410,21 @@ export default function InsightsPage() {
             window.location.href = `${API_URL}/api/reports/${created.data.id}/download`;
         } catch (err) {
             setDownloadError(
-                errorMessage(err, "Could not generate PDF report.")
+                errorMessage(err, "Could not generate PDF report."),
             );
         } finally {
             setDownloadLoading(false);
         }
     }
 
-    async function onRetryAi() {
-        const loggedDays = insights?.data?.counts?.logged_days ?? logs.length;
+    function onRetryAi() {
         if (loggedDays < 7) return;
-
         const c = new AbortController();
         void loadAi(c.signal);
-        // no cleanup needed for a button click (short-lived)
     }
 
     const metrics = insights?.data ?? null;
     const meta = insights?.meta ?? null;
-    const loggedDays = metrics?.counts?.logged_days ?? logs.length;
 
     return (
         <main className="min-h-[100dvh] bg-zinc-950 px-4 pb-24 pt-4 text-zinc-100">
@@ -503,9 +537,11 @@ export default function InsightsPage() {
                         </p>
                     </div>
                 ) : aiLoading ? (
-                    <p className="mt-2 text-sm text-zinc-400">Generating…</p>
+                    <div className="mt-3 rounded-3xl border border-zinc-900 bg-zinc-950 p-5">
+                        <p className="text-sm text-zinc-400">Generating…</p>
+                    </div>
                 ) : aiError ? (
-                    <div className="mt-2 rounded-2xl border border-red-900/40 bg-red-950/40 px-4 py-3 text-sm text-red-200">
+                    <div className="mt-3 rounded-2xl border border-red-900/40 bg-red-950/40 px-4 py-3 text-sm text-red-200">
                         {aiError}
                     </div>
                 ) : ai ? (
@@ -528,9 +564,9 @@ export default function InsightsPage() {
                         </p>
                     </div>
                 ) : (
-                    <p className="mt-2 text-sm text-zinc-400">
-                        No AI response.
-                    </p>
+                    <div className="mt-3 rounded-3xl border border-zinc-900 bg-zinc-950 p-5">
+                        <p className="text-sm text-zinc-400">No AI response.</p>
+                    </div>
                 )}
             </section>
 
@@ -619,7 +655,7 @@ export default function InsightsPage() {
                                                     ].join(" ")}
                                                     aria-hidden
                                                 />
-                                            )
+                                            ),
                                         )}
                                     </span>
                                 </div>
@@ -628,6 +664,56 @@ export default function InsightsPage() {
                     })
                 )}
             </section>
+
+            {/* Shared patterns (community, anonymized) */}
+            {logs.length >= 7 && (
+                <section className="mt-10 space-y-2">
+                    <h2 className="text-3xl font-semibold tracking-tight text-zinc-100">
+                        Shared patterns
+                    </h2>
+                    <p className="text-sm text-zinc-400">
+                        Based on anonymized patterns from users with similar
+                        experiences.
+                    </p>
+
+                    <div className="mt-8 space-y-6">
+                        {sharedLoading ? (
+                            <div className="rounded-3xl border border-zinc-900 bg-zinc-950 px-6 py-7">
+                                <p className="text-base leading-relaxed text-zinc-400">
+                                    Loading shared patterns…
+                                </p>
+                            </div>
+                        ) : sharedError ? (
+                            <div className="rounded-2xl border border-red-900/40 bg-red-950/40 px-4 py-3 text-sm text-red-200">
+                                {sharedError}
+                            </div>
+                        ) : shared ? (
+                            <>
+                                {shared.data.patterns.map((text, idx) => (
+                                    <div
+                                        key={idx}
+                                        className="rounded-3xl border border-zinc-900 bg-zinc-950 px-6 py-7"
+                                    >
+                                        <p className="text-base leading-relaxed text-zinc-400">
+                                            {text}
+                                        </p>
+                                    </div>
+                                ))}
+
+                                <p className="text-xs text-zinc-500">
+                                    {shared.data.disclaimer}
+                                </p>
+                            </>
+                        ) : (
+                            <div className="rounded-3xl border border-zinc-900 bg-zinc-950 px-6 py-7">
+                                <p className="text-base leading-relaxed text-zinc-400">
+                                    No shared patterns available yet.
+                                </p>
+                            </div>
+                        )}
+                    </div>
+                </section>
+            )}
 
             {/* Debug (optional) */}
             {DEBUG && (

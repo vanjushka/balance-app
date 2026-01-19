@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 use Carbon\Carbon;
+
 use App\Models\User;
 use App\Models\SymptomLog;
 use App\Models\Post;
@@ -15,49 +16,61 @@ class DemoSeeder extends Seeder
 {
     public function run(): void
     {
-        // Demo-User
+        // Demo User
         $user = User::create([
             'email'    => 'demo@balance.test',
             'password' => Hash::make('password'),
             'is_admin' => false,
             'profile'  => [
-                'name'       => 'Demo User',
-                'tz'         => 'Europe/Zurich',
-                'diagnosis'  => 'PCOS',
-                'goal'       => 'Track symptoms & create doctor snapshot',
+                'name'      => 'Demo User',
+                'tz'        => 'Europe/Zurich',
+                'diagnosis' => 'PCOS',
+                'goal'      => 'Track symptoms & generate insights',
             ],
         ]);
 
-        // 14 Tage Symptom-Logs
-        $start = Carbon::now()->subDays(13)->startOfDay();
-        $moods   = ['calm','stressed','sad','happy'];
-        $energy  = ['low','medium','high'];
+        // Canonical values (MUSS mit DB + UI matchen)
+        $moods = ['calm', 'stressed', 'sad', 'happy'];
+        $energyLevels = ['depleted', 'low', 'moderate', 'good', 'energized'];
 
-        for ($i = 0; $i < 14; $i++) {
+        $allowedTags = [
+            'cramps','bloating','fatigue','headache','back_pain',
+            'acne','hair_loss',
+            'constipation','diarrhea',
+            'anxious','irritable','brain_fog',
+            'insomnia','restless_sleep',
+            'heavy_flow','spotting',
+        ];
+
+        // 20 Tage Logs (für Insights + Shared Patterns)
+        $start = Carbon::now()->subDays(19)->startOfDay();
+
+        for ($i = 0; $i < 20; $i++) {
             $date = $start->copy()->addDays($i);
 
             SymptomLog::create([
                 'user_id'        => $user->id,
                 'log_date'       => $date->toDateString(),
-                'pain_intensity' => rand(1, 10),
-                'energy_level'   => $energy[array_rand($energy)],
+                'pain_intensity' => rand(2, 8),
+                'energy_level'   => $energyLevels[array_rand($energyLevels)],
                 'mood'           => $moods[array_rand($moods)],
-                'sleep_quality'  => rand(5, 9),
-                'stress_level'   => rand(1, 10),
-                'notes'          => 'Auto-seeded note '.$i,
-                'tags_json'      => ['seeded','day-'.$i],
+                'sleep_quality'  => rand(4, 9),
+                'stress_level'   => rand(2, 8),
+                'notes'          => 'Seeded demo log',
+                'tags_json'      => collect($allowedTags)
+                    ->random(rand(1, 3))
+                    ->values()
+                    ->all(),
             ]);
         }
 
-        // 3 Posts, je 2 Kommentare und 0-3 Likes (vom gleichen User möglich)
+        // Community demo content
         for ($p = 1; $p <= 3; $p++) {
             $post = Post::create([
-                'user_id'   => $user->id,
-                'body'      => "Seeded post #$p — hello Balance!",
-                'image_url' => null,
+                'user_id' => $user->id,
+                'body'    => "Seeded post #$p — Balance demo",
             ]);
 
-            // comments
             for ($c = 1; $c <= 2; $c++) {
                 Comment::create([
                     'post_id' => $post->id,
@@ -66,7 +79,6 @@ class DemoSeeder extends Seeder
                 ]);
             }
 
-            // likes (optional: 50% Chance, dass user liked)
             if (rand(0, 1)) {
                 PostLike::firstOrCreate([
                     'post_id' => $post->id,
@@ -75,6 +87,6 @@ class DemoSeeder extends Seeder
             }
         }
 
-        $this->command?->info('✅ Demo seeded: demo@balance.test / password');
+        $this->command?->info('Demo data seeded successfully(demo@balance.test / password)');
     }
 }

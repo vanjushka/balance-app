@@ -10,6 +10,8 @@ use App\Controllers\PostController;
 use App\Controllers\CommentsController;
 use App\Controllers\ReportsController;
 use App\Controllers\InsightsController;
+use App\Controllers\CommunityPatternsController;
+
 
 /*
 |--------------------------------------------------------------------------
@@ -24,9 +26,10 @@ Route::get('/health', fn () => [
 
 Route::get('/app/meta', fn () => [
     'moods' => ['calm', 'stressed', 'sad', 'happy'],
-    'energy_levels' => ['low', 'medium', 'high'],
+    'energy_levels' => ['depleted', 'low', 'moderate', 'good', 'energized'],
     'version' => 'v0.1',
 ]);
+
 
 /*
 |--------------------------------------------------------------------------
@@ -115,4 +118,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/insights', [InsightsController::class, 'show']);
     Route::post('/insights/summary', [InsightsController::class, 'summary']);
+    Route::get('/community/patterns', [CommunityPatternsController::class, 'show'])
+        ->middleware('throttle:10,1');
+
 });

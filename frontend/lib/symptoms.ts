@@ -1,5 +1,7 @@
 // lib/symptoms.ts
 import { api } from "@/lib/api";
+import type { CanonicalSymptomTag } from "@/lib/symptomTags";
+export type SymptomTag = CanonicalSymptomTag | string;
 
 export type EnergyLevel =
     | "depleted"
@@ -9,8 +11,6 @@ export type EnergyLevel =
     | "energized";
 
 export type Mood = "calm" | "stressed" | "sad" | "happy";
-
-export type SymptomTag = string;
 
 export type SymptomLog = {
     id: number;
@@ -131,10 +131,10 @@ export async function listSymptomLogs(): Promise<SymptomLog[]> {
 }
 
 export async function listSymptomLogsForDate(
-    date: string
+    date: string,
 ): Promise<SymptomLog[]> {
     const res = await api.get<ListResponse<SymptomLog>>(
-        `/api/symptoms?date=${encodeURIComponent(date)}`
+        `/api/symptoms?date=${encodeURIComponent(date)}`,
     );
     return unwrapListResponse(res);
 }
@@ -153,8 +153,8 @@ export async function listSymptomLogsRange(params: {
 
     const first = await api.get<PaginatedResponse<SymptomLog>>(
         `/api/symptoms?from=${encodeURIComponent(
-            params.from
-        )}&to=${encodeURIComponent(params.to)}&per_page=${perPage}`
+            params.from,
+        )}&to=${encodeURIComponent(params.to)}&per_page=${perPage}`,
     );
 
     const page1 = unwrapPaginatedResponse(first);
@@ -165,12 +165,12 @@ export async function listSymptomLogsRange(params: {
             const page = i + 2;
             return api.get<PaginatedResponse<SymptomLog>>(
                 `/api/symptoms?from=${encodeURIComponent(
-                    params.from
+                    params.from,
                 )}&to=${encodeURIComponent(
-                    params.to
-                )}&per_page=${perPage}&page=${page}`
+                    params.to,
+                )}&per_page=${perPage}&page=${page}`,
             );
-        })
+        }),
     );
 
     const other = rest.flatMap((r) => unwrapPaginatedResponse(r).data);
@@ -183,7 +183,7 @@ export async function getSymptomLog(id: number): Promise<SymptomLog> {
 }
 
 export async function createSymptomLog(
-    payload: CreateSymptomLogPayload
+    payload: CreateSymptomLogPayload,
 ): Promise<SymptomLog> {
     const res = await api.post<{ data: SymptomLog }>("/api/symptoms", payload);
     return res.data;
@@ -191,11 +191,11 @@ export async function createSymptomLog(
 
 export async function updateSymptomLog(
     id: number,
-    payload: UpdateSymptomLogPayload
+    payload: UpdateSymptomLogPayload,
 ): Promise<SymptomLog> {
     const res = await api.patch<{ data: SymptomLog }>(
         `/api/symptoms/${id}`,
-        payload
+        payload,
     );
     return res.data;
 }
@@ -211,7 +211,7 @@ export async function getSymptomStats(params?: {
     const qs =
         params?.from && params?.to
             ? `?from=${encodeURIComponent(params.from)}&to=${encodeURIComponent(
-                  params.to
+                  params.to,
               )}`
             : "";
 
