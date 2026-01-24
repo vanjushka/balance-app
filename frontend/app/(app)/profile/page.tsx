@@ -3,6 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { ApiException, api } from "@/lib/api";
 import { getMe, getProfileSummary, logout } from "@/lib/profile";
+import { Card } from "@/components/ui/Card";
+import { ListItem } from "@/components/ui/ListItem";
+import { ConfirmModal } from "@/components/ui/Modal";
 
 function errorMessage(err: unknown, fallback: string) {
     if (err instanceof ApiException) return err.message || fallback;
@@ -23,119 +26,19 @@ function initials(name: string) {
     return (a + b).toUpperCase();
 }
 
-type RowProps = {
+function JourneyRow({
+    value,
+    label,
+}: {
+    value: React.ReactNode;
     label: string;
-    onClick?: () => void;
-    href?: string;
-    danger?: boolean;
-    external?: boolean;
-};
-
-function Row({ label, onClick, href, danger, external }: RowProps) {
-    const base = [
-        "flex w-full items-center justify-between px-5 py-4 text-left",
-        "hover:bg-zinc-50/60",
-        danger ? "text-red-600" : "text-zinc-900",
-    ].join(" ");
-
-    if (href) {
-        return (
-            <a
-                href={href}
-                className={base}
-                target={external ? "_blank" : undefined}
-                rel={external ? "noreferrer" : undefined}
-            >
-                <span className="text-sm">{label}</span>
-                <span className="text-zinc-400" aria-hidden>
-                    ›
-                </span>
-            </a>
-        );
-    }
-
+}) {
     return (
-        <button type="button" onClick={onClick} className={base}>
-            <span className="text-sm">{label}</span>
-            <span className="text-zinc-400" aria-hidden>
-                ›
-            </span>
-        </button>
-    );
-}
-
-type ConfirmModalProps = {
-    open: boolean;
-    title: string;
-    body: string;
-    confirmLabel?: string;
-    cancelLabel?: string;
-    danger?: boolean;
-    loading?: boolean;
-    error?: string | null;
-    onConfirm: () => void;
-    onCancel: () => void;
-};
-
-function ConfirmModal({
-    open,
-    title,
-    body,
-    confirmLabel = "Confirm",
-    cancelLabel = "Cancel",
-    danger,
-    loading,
-    error,
-    onConfirm,
-    onCancel,
-}: ConfirmModalProps) {
-    if (!open) return null;
-
-    return (
-        <div
-            className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-4 sm:items-center"
-            role="dialog"
-            aria-modal="true"
-            aria-label={title}
-        >
-            <div className="w-full max-w-md rounded-3xl border border-zinc-800 bg-zinc-950 p-5 text-zinc-100 shadow-2xl">
-                <h3 className="text-base font-semibold">{title}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-zinc-300">
-                    {body}
-                </p>
-
-                {error && (
-                    <div className="mt-4 rounded-2xl border border-red-900/40 bg-red-950/40 px-4 py-3 text-sm text-red-200">
-                        {error}
-                    </div>
-                )}
-
-                <div className="mt-5 flex gap-3">
-                    <button
-                        type="button"
-                        onClick={onCancel}
-                        disabled={loading}
-                        className="h-11 flex-1 rounded-full border border-zinc-800 bg-zinc-950 text-sm text-zinc-200 hover:border-zinc-700 disabled:opacity-60"
-                    >
-                        {cancelLabel}
-                    </button>
-
-                    <button
-                        type="button"
-                        onClick={onConfirm}
-                        disabled={loading}
-                        className={[
-                            "h-11 flex-1 rounded-full text-sm font-medium",
-                            danger
-                                ? "bg-red-600 text-white hover:bg-red-500"
-                                : "bg-zinc-100 text-zinc-950 hover:bg-white",
-                            loading ? "opacity-70" : "",
-                        ].join(" ")}
-                    >
-                        {loading ? "Please wait…" : confirmLabel}
-                    </button>
-                </div>
+        <div className="px-6 py-6">
+            <div className="text-3xl leading-none text-[var(--fg)]">
+                {value}
             </div>
+            <div className="mt-2 text-base text-[var(--muted)]">{label}</div>
         </div>
     );
 }
@@ -144,7 +47,7 @@ export default function ProfilePage() {
     const [loading, setLoading] = useState(true);
     const [err, setErr] = useState<string | null>(null);
 
-    const [name, setName] = useState<string>("—");
+    const [name, setName] = useState("—");
     const [trackingSince, setTrackingSince] = useState<string | null>(null);
     const [daysTracked, setDaysTracked] = useState<number>(0);
     const [cyclesRecorded, setCyclesRecorded] = useState<number | null>(null);
@@ -153,8 +56,6 @@ export default function ProfilePage() {
     );
 
     const [signOutLoading, setSignOutLoading] = useState(false);
-
-    // Delete modal state
     const [deleteOpen, setDeleteOpen] = useState(false);
     const [deleteLoading, setDeleteLoading] = useState(false);
     const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -165,19 +66,16 @@ export default function ProfilePage() {
         async function load() {
             setErr(null);
             setLoading(true);
-
             try {
                 const [me, summary] = await Promise.all([
                     getMe(),
                     getProfileSummary(),
                 ]);
-
                 if (!alive) return;
 
                 const displayName =
                     me.user.profile?.name?.trim() || me.user.email;
                 setName(displayName);
-
                 setTrackingSince(summary.data.tracking_since);
                 setDaysTracked(summary.data.days_tracked);
                 setCyclesRecorded(summary.data.cycles_recorded);
@@ -212,33 +110,14 @@ export default function ProfilePage() {
         }
     }
 
-    function openDelete() {
-        setDeleteError(null);
-        setDeleteOpen(true);
-    }
-
-    function closeDelete() {
-        if (deleteLoading) return;
-        setDeleteOpen(false);
-        setDeleteError(null);
-    }
-
     async function onConfirmDelete() {
         setDeleteError(null);
         setDeleteLoading(true);
-
         try {
-            // 1) delete account
             await api.delete("/api/user");
-
-            // 2) make sure session is cleaned up (best effort)
             try {
                 await logout();
-            } catch {
-                // ignore
-            }
-
-            // 3) redirect to public entry
+            } catch {}
             window.location.href = "/login";
         } catch (e) {
             setDeleteError(errorMessage(e, "Delete failed."));
@@ -247,140 +126,122 @@ export default function ProfilePage() {
         }
     }
 
-    const supportEmail = "support@balance.test"; // you can change later
-    const helpCenterHref = `mailto:${supportEmail}?subject=${encodeURIComponent(
-        "Balance — Help Center",
-    )}`;
-    const feedbackHref = `mailto:${supportEmail}?subject=${encodeURIComponent(
-        "Balance — Feedback",
-    )}`;
+    const supportEmail = "support@balance.test";
+    const helpCenterHref = `mailto:${supportEmail}?subject=${encodeURIComponent("Balance — Help Center")}`;
+    const feedbackHref = `mailto:${supportEmail}?subject=${encodeURIComponent("Balance — Feedback")}`;
 
     return (
-        <main className="min-h-[100dvh] bg-zinc-950 px-4 pb-28 pt-4 text-zinc-100">
-            <header className="mb-6">
-                <p className="text-sm text-zinc-400">Profile</p>
-            </header>
-
-            <section className="rounded-3xl bg-zinc-50 px-6 py-7 text-zinc-900">
-                <h1 className="font-serif text-4xl tracking-tight">
+        <main className="min-h-[100dvh] bg-[var(--bg)] px-6 pb-28 pt-10">
+            <div className="mx-auto w-full max-w-md">
+                <h1 className="font-serif text-4xl leading-tight text-[var(--fg)]">
                     Your space
                 </h1>
 
                 {err && (
-                    <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                    <div className="mt-4 rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] px-5 py-4 text-sm text-[var(--muted)]">
                         {err}
                     </div>
                 )}
 
-                <div className="mt-6 flex items-center gap-4">
-                    <div className="flex h-14 w-14 items-center justify-center rounded-full bg-zinc-200 text-sm font-semibold text-zinc-700">
+                <div className="mt-10 flex items-center gap-4">
+                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[var(--surface)] text-sm font-medium text-[var(--muted)]">
                         {initials(name === "—" ? "User" : name)}
                     </div>
-
                     <div className="min-w-0">
-                        <p className="text-base font-medium">{name}</p>
-                        <p className="mt-1 text-sm text-zinc-500">
+                        <div className="truncate text-lg text-[var(--fg)]">
+                            {name}
+                        </div>
+                        <div className="mt-1 text-base text-[var(--muted)]">
                             {loading ? "Loading…" : trackingLabel}
-                        </p>
-                    </div>
-                </div>
-
-                {/* Your Journey */}
-                <div className="mt-8 rounded-3xl bg-white px-5 py-5">
-                    <p className="text-xs tracking-widest text-zinc-400">
-                        YOUR JOURNEY
-                    </p>
-
-                    <div className="mt-5 space-y-6">
-                        <div>
-                            <p className="text-3xl font-medium">
-                                {loading ? "—" : daysTracked}
-                            </p>
-                            <p className="text-sm text-zinc-500">
-                                Days tracked
-                            </p>
-                        </div>
-
-                        <div className="h-px bg-zinc-100" />
-
-                        <div>
-                            <p className="text-3xl font-medium">
-                                {loading
-                                    ? "—"
-                                    : cyclesRecorded === null
-                                      ? "—"
-                                      : cyclesRecorded}
-                            </p>
-                            <p className="text-sm text-zinc-500">
-                                Cycles recorded
-                            </p>
-                        </div>
-
-                        <div className="h-px bg-zinc-100" />
-
-                        <div>
-                            <p className="text-3xl font-medium">
-                                {loading
-                                    ? "—"
-                                    : patternsDiscovered === null
-                                      ? "—"
-                                      : patternsDiscovered}
-                            </p>
-                            <p className="text-sm text-zinc-500">
-                                Patterns discovered
-                            </p>
                         </div>
                     </div>
                 </div>
 
-                {/* Settings */}
-                <div className="mt-6 overflow-hidden rounded-3xl bg-white">
-                    <div className="px-5 pt-5">
-                        <p className="text-xs tracking-widest text-zinc-400">
-                            SETTINGS
-                        </p>
-                    </div>
-
-                    <div className="mt-2 divide-y divide-zinc-100">
-                        <Row
-                            label="Notifications"
-                            onClick={() => alert("Notifications (coming soon)")}
+                <div className="mt-10 space-y-6">
+                    {/* Journey Card */}
+                    <Card className="overflow-hidden">
+                        <div className="px-6 pt-6">
+                            <div className="text-xs uppercase tracking-[0.14em] text-[var(--subtle)]">
+                                Your journey
+                            </div>
+                        </div>
+                        <JourneyRow
+                            value={loading ? "—" : daysTracked}
+                            label="Days tracked"
                         />
-                        <Row
-                            label="Delete Account"
-                            danger
-                            onClick={openDelete}
+                        <div className="h-px bg-[var(--border)] mx-6" />
+                        <JourneyRow
+                            value={loading ? "—" : (cyclesRecorded ?? "—")}
+                            label="Cycles recorded"
                         />
-                        <Row label="Privacy" href="/privacy" />
+                        <div className="h-px bg-[var(--border)] mx-6" />
+                        <JourneyRow
+                            value={loading ? "—" : (patternsDiscovered ?? "—")}
+                            label="Patterns discovered"
+                        />
+                    </Card>
+
+                    {/* Settings */}
+                    <Card className="overflow-hidden">
+                        <div className="px-6 pt-6">
+                            <div className="text-xs uppercase tracking-[0.14em] text-[var(--subtle)]">
+                                Settings
+                            </div>
+                        </div>
+                        <div className="mt-2">
+                            <ListItem
+                                label="Notifications"
+                                onClick={() =>
+                                    alert("Notifications (coming soon)")
+                                }
+                            />
+                            <div className="h-px bg-[var(--border)] mx-6" />
+                            <ListItem
+                                label="Delete Account"
+                                tone="danger"
+                                onClick={() => setDeleteOpen(true)}
+                            />
+                            <div className="h-px bg-[var(--border)] mx-6" />
+                            <ListItem label="Privacy" href="/privacy" />
+                        </div>
+                    </Card>
+
+                    {/* Support */}
+                    <Card className="overflow-hidden">
+                        <div className="px-6 pt-6">
+                            <div className="text-xs uppercase tracking-[0.14em] text-[var(--subtle)]">
+                                Support
+                            </div>
+                        </div>
+                        <div className="mt-2">
+                            <ListItem
+                                label="Help center"
+                                href={helpCenterHref}
+                                external
+                            />
+                            <div className="h-px bg-[var(--border)] mx-6" />
+                            <ListItem
+                                label="Send feedback"
+                                href={feedbackHref}
+                                external
+                            />
+                            <div className="h-px bg-[var(--border)] mx-6" />
+                            <ListItem label="About" href="/about" />
+                        </div>
+                    </Card>
+
+                    <div className="pt-2">
+                        <button
+                            type="button"
+                            onClick={onSignOut}
+                            disabled={signOutLoading}
+                            className="mx-auto block text-base text-[var(--subtle)] disabled:opacity-60"
+                        >
+                            {signOutLoading ? "Signing out…" : "Sign out"}
+                        </button>
                     </div>
                 </div>
-
-                {/* Support */}
-                <div className="mt-6 overflow-hidden rounded-3xl bg-white">
-                    <div className="px-5 pt-5">
-                        <p className="text-xs tracking-widest text-zinc-400">
-                            SUPPORT
-                        </p>
-                    </div>
-
-                    <div className="mt-2 divide-y divide-zinc-100">
-                        <Row label="Help center" href={helpCenterHref} />
-                        <Row label="Send feedback" href={feedbackHref} />
-                        <Row label="About" href="/about" />
-                    </div>
-                </div>
-
-                <div className="mt-8 flex justify-center">
-                    <button
-                        type="button"
-                        onClick={onSignOut}
-                        disabled={signOutLoading}
-                        className="text-sm text-zinc-400 hover:text-zinc-700 disabled:opacity-60"
-                    >
-                        {signOutLoading ? "Signing out…" : "Sign out"}
-                    </button>
-                </div>
-            </section>
+            </div>
 
             <ConfirmModal
                 open={deleteOpen}
@@ -391,7 +252,7 @@ export default function ProfilePage() {
                 danger
                 loading={deleteLoading}
                 error={deleteError}
-                onCancel={closeDelete}
+                onCancel={() => setDeleteOpen(false)}
                 onConfirm={onConfirmDelete}
             />
         </main>

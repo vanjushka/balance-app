@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { register } from "@/lib/auth";
 import { ApiException } from "@/lib/api";
@@ -12,6 +13,7 @@ export default function RegisterPage() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [passwordConfirmation, setPasswordConfirmation] = useState("");
+    const [showPw, setShowPw] = useState(false);
 
     const [error, setError] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
@@ -48,86 +50,175 @@ export default function RegisterPage() {
     }
 
     return (
-        <main className="mx-auto w-full max-w-md px-6 py-10">
-            <h1 className="text-2xl font-semibold tracking-tight text-zinc-100">
-                Create account
-            </h1>
-            <p className="mt-2 text-sm text-zinc-400">
-                Create your profile, then log in.
-            </p>
+        <main className="min-h-[100dvh] bg-[var(--bg)] px-6 pb-20 pt-8 text-[var(--fg)]">
+            <div className="mx-auto w-full max-w-md">
+                {/* Top bar */}
+                <header className="flex items-center justify-between">
+                    <button
+                        type="button"
+                        onClick={() => router.back()}
+                        className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-[var(--border)] bg-[color-mix(in_oklch,var(--surface)_85%,var(--bg)_15%)] text-[var(--muted)] shadow-[0_1px_0_rgba(0,0,0,0.03)] hover:text-[var(--fg)]"
+                        aria-label="Back"
+                        title="Back"
+                    >
+                        <svg
+                            viewBox="0 0 24 24"
+                            className="h-5 w-5"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            aria-hidden="true"
+                        >
+                            <path d="M15 18l-6-6 6-6" />
+                        </svg>
+                    </button>
 
-            <form onSubmit={onSubmit} className="mt-6 grid gap-4">
-                <label className="grid gap-2 text-sm">
-                    <span className="text-zinc-200">Name (optional)</span>
-                    <input
-                        type="text"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        autoComplete="name"
-                        className="h-10 rounded-md border border-zinc-800 bg-zinc-950 px-3 text-zinc-100 outline-none focus:border-zinc-700"
-                    />
-                </label>
+                    <span className="h-11 w-11" aria-hidden />
+                </header>
 
-                <label className="grid gap-2 text-sm">
-                    <span className="text-zinc-200">Email</span>
-                    <input
-                        type="email"
-                        required
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        autoComplete="email"
-                        className="h-10 rounded-md border border-zinc-800 bg-zinc-950 px-3 text-zinc-100 outline-none focus:border-zinc-700"
-                    />
-                </label>
+                {/* Heading */}
+                <section className="mt-10 space-y-4">
+                    <h1 className="font-serif text-[2.35rem] leading-[1.08] tracking-tight text-[var(--fg)]">
+                        Create your personal space
+                    </h1>
 
-                <label className="grid gap-2 text-sm">
-                    <span className="text-zinc-200">Password</span>
-                    <input
-                        type="password"
-                        required
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        autoComplete="new-password"
-                        className="h-10 rounded-md border border-zinc-800 bg-zinc-950 px-3 text-zinc-100 outline-none focus:border-zinc-700"
-                    />
-                </label>
-
-                <label className="grid gap-2 text-sm">
-                    <span className="text-zinc-200">Confirm password</span>
-                    <input
-                        type="password"
-                        required
-                        value={passwordConfirmation}
-                        onChange={(e) =>
-                            setPasswordConfirmation(e.target.value)
-                        }
-                        autoComplete="new-password"
-                        className="h-10 rounded-md border border-zinc-800 bg-zinc-950 px-3 text-zinc-100 outline-none focus:border-zinc-700"
-                    />
-                </label>
-
-                {error && (
-                    <p className="rounded-md border border-red-900/40 bg-red-950/40 px-3 py-2 text-sm text-red-200">
-                        {error}
+                    <p className="max-w-[34ch] text-[17px] leading-7 text-[var(--subtle)]">
+                        A private space to track your body with awareness and
+                        care.
                     </p>
-                )}
+                </section>
 
-                <button
-                    type="submit"
-                    disabled={loading}
-                    className="mt-2 inline-flex h-10 items-center justify-center rounded-md bg-zinc-100 px-4 text-sm font-medium text-zinc-950 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                    {loading ? "Creating..." : "Create account"}
-                </button>
+                {/* Form */}
+                <form onSubmit={onSubmit} className="mt-12 space-y-8">
+                    <label className="block">
+                        <span className="block text-sm font-medium text-[var(--fg)]">
+                            Name
+                        </span>
 
-                <button
-                    type="button"
-                    onClick={() => router.push("/login")}
-                    className="inline-flex h-10 items-center justify-center rounded-md border border-zinc-800 bg-zinc-950 px-4 text-sm text-zinc-200 hover:border-zinc-700"
-                >
-                    Back to login
-                </button>
-            </form>
+                        <div className="mt-3 flex h-14 items-center rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-5 shadow-[0_1px_0_rgba(0,0,0,0.03)]">
+                            <input
+                                type="text"
+                                value={name}
+                                onChange={(e) => setName(e.target.value)}
+                                autoComplete="name"
+                                placeholder="Your name"
+                                className="w-full bg-transparent text-[15px] leading-5 text-[var(--fg)] outline-none placeholder:text-[color-mix(in_oklch,var(--muted)_70%,transparent_30%)]"
+                            />
+                        </div>
+                    </label>
+
+                    <label className="block">
+                        <span className="block text-sm font-medium text-[var(--fg)]">
+                            Email
+                        </span>
+
+                        <div className="mt-3 flex h-14 items-center rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-5 shadow-[0_1px_0_rgba(0,0,0,0.03)]">
+                            <input
+                                type="email"
+                                required
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                autoComplete="email"
+                                placeholder="you@email.com"
+                                className="w-full bg-transparent text-[15px] leading-5 text-[var(--fg)] outline-none placeholder:text-[color-mix(in_oklch,var(--muted)_70%,transparent_30%)]"
+                            />
+                        </div>
+                    </label>
+
+                    <label className="block">
+                        <span className="block text-sm font-medium text-[var(--fg)]">
+                            Password
+                        </span>
+
+                        <div className="mt-3 flex h-14 items-center gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-5 shadow-[0_1px_0_rgba(0,0,0,0.03)]">
+                            <input
+                                type={showPw ? "text" : "password"}
+                                required
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                autoComplete="new-password"
+                                placeholder="Create a password"
+                                className="min-w-0 flex-1 bg-transparent text-[15px] leading-5 text-[var(--fg)] outline-none placeholder:text-[color-mix(in_oklch,var(--muted)_70%,transparent_30%)]"
+                            />
+
+                            <button
+                                type="button"
+                                onClick={() => setShowPw((v) => !v)}
+                                className="inline-flex h-9 w-9 items-center justify-center rounded-full text-[var(--muted)] hover:text-[var(--fg)]"
+                                aria-label={
+                                    showPw ? "Hide password" : "Show password"
+                                }
+                                title={
+                                    showPw ? "Hide password" : "Show password"
+                                }
+                            >
+                                <svg
+                                    viewBox="0 0 24 24"
+                                    className="h-5 w-5"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    aria-hidden="true"
+                                >
+                                    <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" />
+                                    <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z" />
+                                </svg>
+                            </button>
+                        </div>
+                    </label>
+
+                    <label className="block">
+                        <span className="block text-sm font-medium text-[var(--fg)]">
+                            Confirm password
+                        </span>
+
+                        <div className="mt-3 flex h-14 items-center rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-5 shadow-[0_1px_0_rgba(0,0,0,0.03)]">
+                            <input
+                                type={showPw ? "text" : "password"}
+                                required
+                                value={passwordConfirmation}
+                                onChange={(e) =>
+                                    setPasswordConfirmation(e.target.value)
+                                }
+                                autoComplete="new-password"
+                                placeholder="Confirm your password"
+                                className="w-full bg-transparent text-[15px] leading-5 text-[var(--fg)] outline-none placeholder:text-[color-mix(in_oklch,var(--muted)_70%,transparent_30%)]"
+                            />
+                        </div>
+                    </label>
+
+                    {error && (
+                        <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
+                            {error}
+                        </div>
+                    )}
+
+                    {/* Actions */}
+                    <div className="pt-10">
+                        <button
+                            type="submit"
+                            disabled={loading}
+                            className="inline-flex h-14 w-full items-center justify-center rounded-full bg-[var(--primary)] px-6 text-base font-medium text-[var(--primary-fg)] shadow-sm hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                            {loading ? "Creating…" : "Create account"}
+                        </button>
+
+                        <p className="mt-10 text-center text-sm text-[var(--subtle)]">
+                            I already have an account{" "}
+                            <Link
+                                href="/login"
+                                className="font-semibold text-[color-mix(in_oklch,var(--fg)_80%,var(--subtle)_20%)] hover:text-[var(--fg)]"
+                            >
+                                → Log in
+                            </Link>
+                        </p>
+                    </div>
+                </form>
+            </div>
         </main>
     );
 }

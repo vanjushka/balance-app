@@ -77,12 +77,17 @@ export default function DashboardPage() {
             return;
         }
 
+        if (energy === null) {
+            setSaveError("Please select an energy level.");
+            return;
+        }
+
         setSaveLoading(true);
 
         const payload: CreateSymptomLogPayload = {
             log_date: today,
             pain_intensity: pain,
-            energy_level: energy ?? null,
+            energy_level: energy, // ✅ never null
             notes: note.trim() ? note.trim() : null,
         };
 
@@ -100,7 +105,7 @@ export default function DashboardPage() {
                     setSaveSuccess("Updated.");
                 } catch (inner) {
                     setSaveError(
-                        errorMessage(inner, "Failed to update check-in")
+                        errorMessage(inner, "Failed to update check-in"),
                     );
                 } finally {
                     setSaveLoading(false);
@@ -120,114 +125,144 @@ export default function DashboardPage() {
         setNote("");
         setSaveError(null);
         setSaveSuccess(null);
+
+        router.replace("/symptoms");
     }
 
     return (
-        <main className="space-y-6">
+        <main className="space-y-10">
             <header className="pt-1">
                 <div className="flex items-start justify-between">
                     <button
                         type="button"
                         onClick={() => router.back()}
-                        className="h-10 w-10 rounded-full border border-zinc-800 text-zinc-200 hover:border-zinc-700"
+                        className="inline-flex h-10 w-10 items-center justify-center rounded-full text-[var(--muted)] hover:text-[var(--fg)]"
                         aria-label="Back"
                         title="Back"
                     >
-                        <span className="text-xl">‹</span>
+                        <span className="text-2xl leading-none">‹</span>
                     </button>
 
-                    <div className="text-right">
-                        <p className="text-[11px] tracking-widest text-zinc-500">
+                    <div className="text-center">
+                        <p className="text-[10px] uppercase tracking-[0.18em] text-[var(--subtle)]">
                             TODAY
                         </p>
-                        <p className="text-sm text-zinc-300">
+                        <p className="mt-1 text-sm text-[var(--muted)]">
                             {formatHeaderDate(today)}
                         </p>
                     </div>
+
+                    <span className="h-10 w-10" aria-hidden />
                 </div>
             </header>
 
-            <section className="space-y-2">
-                <h1 className="text-3xl font-semibold tracking-tight text-zinc-100">
-                    How are you feeling today?
+            <section className="space-y-3">
+                <h1 className="font-serif text-[2.65rem] leading-[1.03] tracking-tight text-[var(--fg)]">
+                    How are you feeling today, Vanja?
                 </h1>
-                <p className="text-sm text-zinc-400">
-                    A quick check-in. No pressure.
+                <p className="text-[15px] leading-relaxed text-[var(--muted)]">
+                    A gentle moment to acknowledge what you are noticing.
                 </p>
             </section>
 
-            <section className="space-y-3">
+            <section className="space-y-4">
                 <div>
-                    <p className="text-sm font-medium text-zinc-100">
+                    <p className="text-[15px] font-medium text-[var(--fg)]">
                         Pain level
                     </p>
-                    <p className="text-xs text-zinc-400">
+                    <p className="mt-1 text-xs text-[var(--subtle)]">
                         How intense was any discomfort?
                     </p>
                 </div>
 
-                <div className="rounded-2xl border border-zinc-900 bg-zinc-950 p-5">
+                <div className="rounded-[var(--radius-card)] border border-transparent bg-[var(--surface)] px-6 py-7 shadow-[0_1px_0_rgba(0,0,0,0.03)]">
                     <div className="text-center">
-                        <div className="text-4xl font-semibold text-zinc-500">
+                        <div className="text-4xl font-medium text-[color-mix(in_oklch,var(--primary)_55%,var(--fg)_45%)]">
                             {pain ?? "—"}
                         </div>
                     </div>
 
-                    <div className="mt-4 flex items-center justify-between gap-2">
-                        {Array.from({ length: 10 }, (_, i) => i + 1).map(
-                            (n) => {
-                                const active = pain === n;
-                                return (
-                                    <button
-                                        key={n}
-                                        type="button"
-                                        onClick={() => setPain(n)}
-                                        className={[
-                                            "h-2.5 w-2.5 rounded-full transition",
-                                            active
-                                                ? "bg-zinc-100"
-                                                : "bg-zinc-800 hover:bg-zinc-700",
-                                        ].join(" ")}
-                                        aria-label={`Pain ${n}`}
-                                        aria-pressed={active}
-                                    />
-                                );
-                            }
-                        )}
+                    {/* Slider */}
+                    <div className="mt-6">
+                        <div className="flex items-end justify-between">
+                            <p className="text-xs text-[var(--subtle)]">None</p>
+                            <p className="text-xs text-[var(--subtle)]">
+                                Severe
+                            </p>
+                        </div>
+
+                        <div className="mt-3">
+                            <input
+                                type="range"
+                                min={1}
+                                max={10}
+                                step={1}
+                                value={pain ?? 1}
+                                onChange={(e) =>
+                                    setPain(Number(e.target.value))
+                                }
+                                aria-label="Pain level"
+                                className="pain-slider w-full"
+                                style={
+                                    {
+                                        ["--p" as never]: String(
+                                            ((pain ?? 1) - 1) / 9,
+                                        ),
+                                    } as React.CSSProperties
+                                }
+                            />
+
+                            <div className="mt-3 flex items-center justify-between text-xs text-[var(--subtle)]">
+                                <span>1</span>
+                                <span>10</span>
+                            </div>
+                        </div>
                     </div>
 
-                    <div className="mt-3 flex items-center justify-between text-xs text-zinc-500">
+                    <div className="mt-4 flex items-center justify-between text-xs text-[var(--subtle)]">
                         <span>None</span>
                         <span>Severe</span>
                     </div>
                 </div>
             </section>
 
-            <section className="space-y-3">
+            <section className="space-y-4">
                 <div>
-                    <p className="text-sm font-medium text-zinc-100">Energy</p>
-                    <p className="text-xs text-zinc-400">
+                    <p className="text-[15px] font-medium text-[var(--fg)]">
+                        Energy
+                    </p>
+                    <p className="mt-1 text-xs text-[var(--subtle)]">
                         How are you feeling overall?
                     </p>
                 </div>
 
-                <div className="space-y-2">
+                <div className="space-y-3">
                     {ENERGY_OPTIONS.map((opt) => {
                         const active = energy === opt.value;
+
                         return (
                             <button
                                 key={opt.value}
                                 type="button"
                                 onClick={() =>
                                     setEnergy((prev) =>
-                                        prev === opt.value ? null : opt.value
+                                        prev === opt.value ? null : opt.value,
                                     )
                                 }
                                 className={[
-                                    "w-full rounded-2xl border px-4 py-3 text-left text-sm transition",
+                                    "w-full rounded-[22px] border px-5 py-4 text-left text-sm transition",
                                     active
-                                        ? "border-zinc-100 bg-zinc-900 text-zinc-100"
-                                        : "border-zinc-900 bg-zinc-950 text-zinc-200 hover:border-zinc-800",
+                                        ? [
+                                              "border-[color-mix(in_oklch,var(--primary)_60%,var(--border)_40%)]",
+                                              "bg-[color-mix(in_oklch,var(--primary)_10%,white_90%)]",
+                                              "text-[var(--fg)]",
+                                          ].join(" ")
+                                        : [
+                                              "border-[var(--border)]",
+                                              "bg-[var(--surface)]",
+                                              "text-[var(--muted)]",
+                                              "hover:border-[color-mix(in_oklch,var(--primary)_35%,var(--border)_65%)]",
+                                          ].join(" "),
                                 ].join(" ")}
                                 aria-pressed={active}
                             >
@@ -238,28 +273,31 @@ export default function DashboardPage() {
                 </div>
             </section>
 
-            <section className="space-y-2">
+            <section className="space-y-3">
                 <div className="flex items-baseline gap-2">
-                    <p className="text-sm font-medium text-zinc-100">Note</p>
-                    <p className="text-xs text-zinc-500">(optional)</p>
+                    <p className="text-[15px] font-medium text-[var(--fg)]">
+                        Note
+                    </p>
+                    <p className="text-xs text-[var(--subtle)]">(optional)</p>
                 </div>
 
                 <textarea
                     value={note}
                     onChange={(e) => setNote(e.target.value)}
-                    rows={4}
-                    className="w-full rounded-2xl border border-zinc-900 bg-zinc-950 px-4 py-3 text-sm text-zinc-100 outline-none focus:border-zinc-700"
+                    rows={5}
+                    className="w-full rounded-[22px] border border-[var(--border)] bg-[var(--surface)] px-5 py-4 text-sm text-[var(--fg)] outline-none focus:border-[color-mix(in_oklch,var(--primary)_45%,var(--border)_55%)]"
                     placeholder="Write here if you’d like…"
                 />
             </section>
 
             {saveError && (
-                <div className="rounded-2xl border border-red-900/40 bg-red-950/40 px-4 py-3 text-sm text-red-200">
+                <div className="rounded-[22px] border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
                     {saveError}
                 </div>
             )}
+
             {saveSuccess && (
-                <div className="rounded-2xl border border-emerald-900/40 bg-emerald-950/30 px-4 py-3 text-sm text-emerald-200">
+                <div className="rounded-[22px] border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm text-emerald-800">
                     {saveSuccess}
                 </div>
             )}
@@ -269,14 +307,14 @@ export default function DashboardPage() {
                     type="button"
                     onClick={() => void saveCheckIn()}
                     disabled={saveLoading}
-                    className="inline-flex h-12 w-full items-center justify-center rounded-full bg-zinc-100 text-sm font-medium text-zinc-950 hover:bg-white disabled:cursor-not-allowed disabled:opacity-70"
+                    className="inline-flex h-14 w-full items-center justify-center rounded-full bg-[var(--primary)] px-6 text-base font-medium text-[var(--primary-fg)] shadow-sm hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                     {saveLoading ? "Saving…" : "Save check-in"}
                 </button>
 
                 <Link
                     href={`/symptoms/new?date=${today}`}
-                    className="inline-flex h-12 w-full items-center justify-center rounded-full border border-zinc-800 bg-zinc-950 text-sm font-medium text-zinc-200 hover:border-zinc-700"
+                    className="inline-flex h-14 w-full items-center justify-center rounded-full border border-[color-mix(in_oklch,var(--primary)_55%,var(--border)_45%)] bg-[color-mix(in_oklch,var(--primary)_10%,white_90%)] px-6 text-base font-medium text-[color-mix(in_oklch,var(--primary)_55%,var(--fg)_45%)] hover:opacity-95"
                 >
                     Add symptoms
                 </Link>
@@ -284,7 +322,7 @@ export default function DashboardPage() {
                 <button
                     type="button"
                     onClick={skipToday}
-                    className="w-full text-center text-xs text-zinc-500 hover:text-zinc-300"
+                    className="w-full text-center text-xs text-[var(--subtle)] hover:text-[var(--muted)]"
                 >
                     Skip for today
                 </button>

@@ -2,44 +2,155 @@
 
 export default function PrivacyPage() {
     return (
-        <main className="min-h-[100dvh] bg-zinc-950 px-4 pb-24 pt-4 text-zinc-100">
-            <header className="mb-6">
-                <div className="flex items-center justify-between">
+        <main className="min-h-[100dvh] bg-[var(--bg)] px-6 pb-20 pt-8 text-[var(--fg)]">
+            <div className="mx-auto w-full max-w-md">
+                {/* Top bar */}
+                <header className="flex items-center justify-between">
                     <button
                         type="button"
                         onClick={() => history.back()}
-                        className="h-10 w-10 rounded-full border border-zinc-800 text-zinc-200 hover:border-zinc-700"
+                        className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-[var(--border)] bg-[color-mix(in_oklch,var(--surface)_85%,var(--bg)_15%)] text-[var(--muted)] shadow-[0_1px_0_rgba(0,0,0,0.03)] hover:text-[var(--fg)]"
                         aria-label="Back"
                         title="Back"
                     >
-                        <span className="text-xl">‹</span>
+                        <svg
+                            viewBox="0 0 24 24"
+                            className="h-5 w-5"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            aria-hidden="true"
+                        >
+                            <path d="M15 18l-6-6 6-6" />
+                        </svg>
                     </button>
 
-                    <p className="text-sm text-zinc-300">Privacy</p>
+                    <p className="text-sm text-[var(--subtle)]">Privacy</p>
 
-                    <span className="h-10 w-10" aria-hidden />
-                </div>
-            </header>
+                    <span className="h-11 w-11" aria-hidden />
+                </header>
 
-            <section className="rounded-3xl border border-zinc-900 bg-zinc-950 p-6 space-y-4">
-                <h1 className="text-3xl font-semibold tracking-tight">
-                    Privacy Policy
-                </h1>
+                {/* Content */}
+                <section className="mt-12">
+                    <h1 className="font-serif text-[2.1rem] leading-[1.1] tracking-tight text-[var(--fg)]">
+                        Privacy Policy
+                    </h1>
 
-                <p className="text-sm leading-relaxed text-zinc-400">
-                    Your data belongs to you. Balance stores only the
-                    information required to provide insights and does not sell
-                    or share personal health data.
-                </p>
+                    {/* divider under title */}
+                    <div className="mt-4 h-px w-full bg-[color-mix(in_oklch,var(--border)_65%,transparent_35%)]" />
 
-                <p className="text-sm leading-relaxed text-zinc-400">
-                    All community patterns are anonymized and aggregated.
-                </p>
+                    <p className="mt-6 text-[15px] leading-6 text-[var(--subtle)]">
+                        Your privacy matters. This Privacy Policy explains how
+                        Balance collects, uses, and protects personal data.
+                        Balance is currently developed as a student project
+                        based in Zurich, Switzerland, and is available to an
+                        international audience.
+                    </p>
 
-                <p className="text-xs text-zinc-500">
-                    This app is for educational purposes only.
-                </p>
-            </section>
+                    {/* Data collection */}
+                    <div className="mt-8 h-px w-full bg-[color-mix(in_oklch,var(--border)_50%,transparent_50%)]" />
+
+                    <h2 className="mt-6 text-sm font-medium text-[var(--fg)]">
+                        Data we collect
+                    </h2>
+
+                    <p className="mt-3 text-[15px] leading-6 text-[var(--subtle)]">
+                        Balance collects only the information necessary to
+                        provide its core functionality. This may include:
+                    </p>
+
+                    <ul className="mt-3 list-disc space-y-2 pl-5 text-[15px] leading-6 text-[var(--subtle)]">
+                        <li>Account information such as email address</li>
+                        <li>
+                            User-provided entries related to symptoms, moods, or
+                            personal observations
+                        </li>
+                        <li>Technical data required for basic app operation</li>
+                    </ul>
+
+                    {/* Health data */}
+                    <div className="mt-8 h-px w-full bg-[color-mix(in_oklch,var(--border)_50%,transparent_50%)]" />
+
+                    <h2 className="mt-6 text-sm font-medium text-[var(--fg)]">
+                        Health-related data
+                    </h2>
+
+                    <p className="mt-3 text-[15px] leading-6 text-[var(--subtle)]">
+                        Any health-related information entered into Balance is
+                        provided voluntarily by the user. This data is used
+                        solely for personal tracking, reflection, and pattern
+                        recognition within the app.
+                    </p>
+
+                    <p className="mt-3 text-[15px] leading-6 text-[var(--subtle)]">
+                        Balance does not analyze data for medical diagnosis,
+                        treatment, or clinical decision-making.
+                    </p>
+
+                    {/* Data usage */}
+                    <div className="mt-8 h-px w-full bg-[color-mix(in_oklch,var(--border)_50%,transparent_50%)]" />
+
+                    <h2 className="mt-6 text-sm font-medium text-[var(--fg)]">
+                        How data is used
+                    </h2>
+
+                    <p className="mt-3 text-[15px] leading-6 text-[var(--subtle)]">
+                        Personal data is used exclusively to operate and improve
+                        the app experience. Balance does not sell, rent, or
+                        trade personal data to third parties.
+                    </p>
+
+                    <p className="mt-3 text-[15px] leading-6 text-[var(--subtle)]">
+                        Any community or pattern-based insights are anonymized
+                        and aggregated so that individual users cannot be
+                        identified.
+                    </p>
+
+                    {/* Data storage & security */}
+                    <div className="mt-8 h-px w-full bg-[color-mix(in_oklch,var(--border)_50%,transparent_50%)]" />
+
+                    <h2 className="mt-6 text-sm font-medium text-[var(--fg)]">
+                        Data storage and security
+                    </h2>
+
+                    <p className="mt-3 text-[15px] leading-6 text-[var(--subtle)]">
+                        Reasonable technical and organizational measures are
+                        used to protect stored data against unauthorized access,
+                        loss, or misuse. However, no digital system can be
+                        guaranteed to be completely secure.
+                    </p>
+
+                    {/* User rights */}
+                    <div className="mt-8 h-px w-full bg-[color-mix(in_oklch,var(--border)_50%,transparent_50%)]" />
+
+                    <h2 className="mt-6 text-sm font-medium text-[var(--fg)]">
+                        Your rights
+                    </h2>
+
+                    <p className="mt-3 text-[15px] leading-6 text-[var(--subtle)]">
+                        Depending on your location, you may have the right to
+                        access, correct, or delete your personal data. You may
+                        also request information about how your data is stored
+                        and used.
+                    </p>
+
+                    {/* Scope */}
+                    <div className="mt-8 h-px w-full bg-[color-mix(in_oklch,var(--border)_50%,transparent_50%)]" />
+
+                    <p className="mt-6 text-xs leading-5 text-[color-mix(in_oklch,var(--subtle)_80%,transparent_20%)]">
+                        Balance is provided for educational and informational
+                        purposes only and is not a medical product.
+                    </p>
+
+                    <p className="mt-3 text-xs leading-5 text-[color-mix(in_oklch,var(--subtle)_80%,transparent_20%)]">
+                        This Privacy Policy may be updated as the app evolves.
+                        Continued use of Balance implies acceptance of the
+                        current version.
+                    </p>
+                </section>
+            </div>
         </main>
     );
 }

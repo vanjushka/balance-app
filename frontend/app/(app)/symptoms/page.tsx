@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { listSymptomLogs, SymptomLog } from "@/lib/symptoms";
 import { ApiException } from "@/lib/api";
+import { Card } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
 
 function todayISO(): string {
     return new Date().toISOString().slice(0, 10);
@@ -14,16 +16,10 @@ function dateOnly(isoLike: string): string {
 }
 
 function ymKeyFromISO(isoDay: string): string {
-    return isoDay.slice(0, 7); // YYYY-MM
+    return isoDay.slice(0, 7);
 }
 
 function monthLabelFromYM(ym: string): string {
-    const [y, m] = ym.split("-").map(Number);
-    const d = new Date(Date.UTC(y, (m ?? 1) - 1, 1));
-    return d.toLocaleDateString(undefined, { month: "long", year: "numeric" });
-}
-
-function headerMonthLabelFromYM(ym: string): string {
     const [y, m] = ym.split("-").map(Number);
     const d = new Date(Date.UTC(y, (m ?? 1) - 1, 1));
     return d.toLocaleDateString(undefined, { month: "long", year: "numeric" });
@@ -69,10 +65,10 @@ function daysInMonth(y: number, m1to12: number): number {
 function weekdayIndexSundayFirst(
     y: number,
     m1to12: number,
-    day: number
+    day: number,
 ): number {
     const dt = new Date(Date.UTC(y, m1to12 - 1, day));
-    return dt.getUTCDay(); // 0=Sun..6=Sat
+    return dt.getUTCDay();
 }
 
 function relativeLabel(isoDay: string): string | null {
@@ -98,14 +94,11 @@ function markersForLog(log: SymptomLog): {
 } {
     const pain =
         typeof log.pain_intensity === "number" ? log.pain_intensity : null;
-
     const tagsCount = Array.isArray(log.tags_json) ? log.tags_json.length : 0;
 
     const lowEnergy =
         log.energy_level === "depleted" || log.energy_level === "low";
 
-    // Entry exists if *any* tracked field has a value.
-    // (Used for edge-case: note-only day should still show mild.)
     const hasAnyEntry =
         (pain !== null && pain > 0) ||
         tagsCount > 0 ||
@@ -115,11 +108,8 @@ function markersForLog(log: SymptomLog): {
         typeof log.stress_level === "number" ||
         (log.energy_level !== null && log.energy_level !== undefined);
 
-    // High = pain >= 6 OR tags >= 4
     const highSymptoms = (pain !== null && pain >= 6) || tagsCount >= 4;
 
-    // Mild = only if not high, and either
-    // - pain 1..5 OR tags 1..3 OR (edge-case) entry exists (e.g. note-only day)
     const mildSymptoms =
         !highSymptoms &&
         ((pain !== null && pain >= 1 && pain <= 5) ||
@@ -137,14 +127,71 @@ function summarizeTags(tags?: string[] | null): string | null {
         .join(", ");
 }
 
-export default function SymptomsPage() {
+type MarkKind = "high" | "mild" | "energy";
+
+function markClass(kind: MarkKind, on?: boolean) {
+    // keep spacing consistent even when off
+    const baseOff = "h-1.5 w-1.5 rounded-full bg-transparent";
+
+    if (!on) return baseOff;
+
+    if (kind === "high") {
+        return "h-1.5 w-1.5 rounded-full bg-[var(--mark-high)] ring-2 ring-[var(--mark-ring)] shadow-[var(--mark-shadow)]";
+    }
+
+    if (kind === "mild") {
+        return "h-1.5 w-1.5 rounded-full bg-[var(--mark-mild)] ring-2 ring-[var(--mark-ring)] opacity-70";
+    }
+
+    return "h-1.5 w-1.5 rounded-full bg-[var(--mark-energy)] ring-2 ring-[var(--mark-ring)] opacity-75";
+}
+
+function Mark({ kind, on }: { kind: MarkKind; on?: boolean }) {
+    return <span className={markClass(kind, on)} aria-hidden />;
+}
+
+function IconChevronLeft({ className }: { className?: string }) {
+    return (
+        <svg
+            viewBox="0 0 24 24"
+            className={className}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+        >
+            <path d="M15 18l-6-6 6-6" />
+        </svg>
+    );
+}
+
+function IconChevronRight({ className }: { className?: string }) {
+    return (
+        <svg
+            viewBox="0 0 24 24"
+            className={className}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+        >
+            <path d="M9 18l6-6-6-6" />
+        </svg>
+    );
+}
+
+export default function TimelinePage() {
     const [logs, setLogs] = useState<SymptomLog[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
     const [selectedDate, setSelectedDate] = useState<string>(todayISO());
     const [selectedMonthYM, setSelectedMonthYM] = useState<string>(() =>
-        ymKeyFromISO(todayISO())
+        ymKeyFromISO(todayISO()),
     );
 
     const load = useCallback(async (signal?: AbortSignal) => {
@@ -169,31 +216,25 @@ export default function SymptomsPage() {
         return () => controller.abort();
     }, [load]);
 
-    // Map: YYYY-MM-DD -> log
     const logByDay = useMemo(() => {
         const map = new Map<string, SymptomLog>();
-        for (const l of logs) {
-            map.set(dateOnly(l.log_date), l);
-        }
+        for (const l of logs) map.set(dateOnly(l.log_date), l);
         return map;
     }, [logs]);
 
     const recentEntries = useMemo(() => {
-        const sorted = [...logs].sort((a, b) => {
-            const da = dateOnly(a.log_date);
-            const db = dateOnly(b.log_date);
-            return db.localeCompare(da);
-        });
+        const sorted = [...logs].sort((a, b) =>
+            dateOnly(b.log_date).localeCompare(dateOnly(a.log_date)),
+        );
         return sorted.slice(0, 4);
     }, [logs]);
 
-    // Calendar days for selected month
     const calendarCells = useMemo(() => {
         const [yy, mm] = selectedMonthYM.split("-").map(Number);
         const y = yy;
         const m = mm;
 
-        const firstWeekday = weekdayIndexSundayFirst(y, m, 1); // 0..6
+        const firstWeekday = weekdayIndexSundayFirst(y, m, 1);
         const totalDays = daysInMonth(y, m);
 
         const cells: Array<
@@ -201,14 +242,11 @@ export default function SymptomsPage() {
             | { kind: "day"; key: string; isoDay: string; dayNumber: number }
         > = [];
 
-        for (let i = 0; i < firstWeekday; i++) {
+        for (let i = 0; i < firstWeekday; i++)
             cells.push({ kind: "empty", key: `e-${i}` });
-        }
 
         for (let day = 1; day <= totalDays; day++) {
-            const isoDay = `${y}-${String(m).padStart(2, "0")}-${String(
-                day
-            ).padStart(2, "0")}`;
+            const isoDay = `${y}-${String(m).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
             cells.push({ kind: "day", key: isoDay, isoDay, dayNumber: day });
         }
 
@@ -216,290 +254,308 @@ export default function SymptomsPage() {
     }, [selectedMonthYM]);
 
     return (
-        <main className="space-y-6">
-            {/* Header */}
-            <header className="pt-1">
-                <div className="flex items-start justify-between">
+        <main className="min-h-[100dvh] bg-[var(--bg)] px-6 pb-28 pt-8">
+            <div className="mx-auto w-full max-w-md">
+                <header className="flex items-start justify-between">
                     <button
                         type="button"
                         onClick={() => history.back()}
-                        className="h-10 w-10 rounded-full border border-zinc-800 text-zinc-200 hover:border-zinc-700"
+                        className="h-10 w-10 rounded-full text-[var(--muted)]"
                         aria-label="Back"
                         title="Back"
                     >
-                        <span className="text-xl">‹</span>
+                        <IconChevronLeft className="h-6 w-6" />
                     </button>
 
                     <div className="text-center">
-                        <p className="text-[11px] tracking-widest text-zinc-500">
-                            HISTORY
-                        </p>
-                        <p className="text-sm text-zinc-300">
-                            {headerMonthLabelFromYM(selectedMonthYM)}
-                        </p>
+                        <div className="text-xs uppercase tracking-[0.14em] text-[var(--subtle)]">
+                            History
+                        </div>
+                        <div className="mt-1 text-base text-[var(--muted)]">
+                            {monthLabelFromYM(selectedMonthYM)}
+                        </div>
                     </div>
 
-                    <button
-                        type="button"
-                        className="h-10 w-10 rounded-full border border-zinc-800 text-zinc-200 hover:border-zinc-700"
-                        aria-label="More"
-                        title="More"
-                    >
-                        <span className="text-xl">⋯</span>
-                    </button>
-                </div>
-            </header>
+                    <div className="h-10 w-10" aria-hidden="true" />
+                </header>
 
-            <section className="space-y-2">
-                <h1 className="text-3xl font-semibold tracking-tight text-zinc-100">
-                    Your symptom timeline
-                </h1>
-                <p className="text-sm text-zinc-400">
-                    A gentle overview of patterns and changes over time.
-                </p>
-            </section>
-
-            {/* Month selector pill */}
-            <section className="rounded-2xl border border-zinc-900 bg-zinc-950 p-4">
-                <div className="flex items-center justify-between">
-                    <button
-                        type="button"
-                        onClick={() =>
-                            setSelectedMonthYM((prev) => addMonthsYM(prev, -1))
-                        }
-                        className="h-10 w-10 rounded-full border border-zinc-800 text-zinc-200 hover:border-zinc-700"
-                        aria-label="Previous month"
-                        title="Previous month"
-                    >
-                        ‹
-                    </button>
-
-                    <p className="text-sm font-medium text-zinc-100">
-                        {monthLabelFromYM(selectedMonthYM)}
+                <section className="mt-6">
+                    <h1 className="font-serif text-4xl leading-tight text-[var(--fg)]">
+                        Your symptom timeline
+                    </h1>
+                    <p className="mt-2 text-base text-[var(--muted)]">
+                        A gentle overview of patterns and changes over time.
                     </p>
+                </section>
 
-                    <button
-                        type="button"
-                        onClick={() =>
-                            setSelectedMonthYM((prev) => addMonthsYM(prev, 1))
-                        }
-                        className="h-10 w-10 rounded-full border border-zinc-800 text-zinc-200 hover:border-zinc-700"
-                        aria-label="Next month"
-                        title="Next month"
-                    >
-                        ›
-                    </button>
-                </div>
+                <section className="mt-8">
+                    <Card className="px-6 py-4">
+                        <div className="flex items-center justify-between">
+                            <button
+                                type="button"
+                                onClick={() =>
+                                    setSelectedMonthYM((prev) =>
+                                        addMonthsYM(prev, -1),
+                                    )
+                                }
+                                className="h-10 w-10 rounded-full text-[var(--muted)]"
+                                aria-label="Previous month"
+                                title="Previous month"
+                            >
+                                <IconChevronLeft className="h-6 w-6" />
+                            </button>
 
-                {/* Calendar */}
-                <div className="mt-4 rounded-2xl border border-zinc-900 bg-black/20 p-4">
-                    <div className="grid grid-cols-7 gap-2 text-center text-[11px] text-zinc-500">
-                        <div>S</div>
-                        <div>M</div>
-                        <div>T</div>
-                        <div>W</div>
-                        <div>T</div>
-                        <div>F</div>
-                        <div>S</div>
-                    </div>
+                            <div className="text-base text-[var(--fg)]">
+                                {monthLabelFromYM(selectedMonthYM)}
+                            </div>
 
-                    <div className="mt-3 grid grid-cols-7 gap-2">
-                        {calendarCells.map((cell) => {
-                            if (cell.kind === "empty") {
-                                return <div key={cell.key} className="h-10" />;
-                            }
+                            <button
+                                type="button"
+                                onClick={() =>
+                                    setSelectedMonthYM((prev) =>
+                                        addMonthsYM(prev, 1),
+                                    )
+                                }
+                                className="h-10 w-10 rounded-full text-[var(--muted)]"
+                                aria-label="Next month"
+                                title="Next month"
+                            >
+                                <IconChevronRight className="h-6 w-6" />
+                            </button>
+                        </div>
 
-                            const isSelected = cell.isoDay === selectedDate;
-                            const log = logByDay.get(cell.isoDay);
-                            const markers = log ? markersForLog(log) : null;
+                        <div className="mt-4 rounded-[var(--radius-card)] bg-[var(--surface)] px-4 py-4">
+                            <div className="grid grid-cols-7 text-center text-xs text-[var(--subtle)]">
+                                <div>S</div>
+                                <div>M</div>
+                                <div>T</div>
+                                <div>W</div>
+                                <div>T</div>
+                                <div>F</div>
+                                <div>S</div>
+                            </div>
 
-                            return (
-                                <button
-                                    key={cell.key}
-                                    type="button"
-                                    onClick={() => setSelectedDate(cell.isoDay)}
-                                    className={[
-                                        "h-10 rounded-xl border text-sm transition",
-                                        isSelected
-                                            ? "border-zinc-100 bg-zinc-900 text-zinc-100"
-                                            : "border-zinc-900 bg-zinc-950 text-zinc-200 hover:border-zinc-800",
-                                    ].join(" ")}
-                                    aria-label={`Select ${cell.isoDay}`}
-                                    aria-pressed={isSelected}
-                                >
-                                    <div className="flex h-full flex-col items-center justify-center gap-1">
-                                        <span className="leading-none">
-                                            {cell.dayNumber}
-                                        </span>
-
-                                        {/* marker row (up to 3 dots) */}
-                                        <span className="flex items-center gap-1">
-                                            <span
-                                                className={[
-                                                    "h-1.5 w-1.5 rounded-full",
-                                                    markers?.highSymptoms
-                                                        ? "bg-zinc-200"
-                                                        : "bg-transparent",
-                                                ].join(" ")}
-                                                aria-hidden
+                            <div className="mt-4 grid grid-cols-7">
+                                {calendarCells.map((cell) => {
+                                    if (cell.kind === "empty") {
+                                        return (
+                                            <div
+                                                key={cell.key}
+                                                className="h-10"
                                             />
-                                            <span
-                                                className={[
-                                                    "h-1.5 w-1.5 rounded-full",
-                                                    markers?.mildSymptoms
-                                                        ? "bg-zinc-500"
-                                                        : "bg-transparent",
-                                                ].join(" ")}
-                                                aria-hidden
-                                            />
-                                            <span
-                                                className={[
-                                                    "h-1.5 w-1.5 rounded-full",
-                                                    markers?.lowEnergy
-                                                        ? "bg-zinc-400"
-                                                        : "bg-transparent",
-                                                ].join(" ")}
-                                                aria-hidden
-                                            />
-                                        </span>
-                                    </div>
-                                </button>
-                            );
-                        })}
-                    </div>
-                </div>
-            </section>
+                                        );
+                                    }
 
-            {/* Legend */}
-            <section className="flex items-center justify-between gap-3 text-xs text-zinc-500">
-                <div className="flex items-center gap-2">
-                    <span className="h-2 w-2 rounded-full bg-zinc-200" />
-                    <span>High symptoms</span>
-                </div>
-                <div className="flex items-center gap-2">
-                    <span className="h-2 w-2 rounded-full bg-zinc-500" />
-                    <span>Mild symptoms</span>
-                </div>
-                <div className="flex items-center gap-2">
-                    <span className="h-2 w-2 rounded-full bg-zinc-400" />
-                    <span>Low energy</span>
-                </div>
-            </section>
+                                    const isSelected =
+                                        cell.isoDay === selectedDate;
+                                    const log = logByDay.get(cell.isoDay);
+                                    const markers = log
+                                        ? markersForLog(log)
+                                        : null;
 
-            {/* Recent entries */}
-            <section className="space-y-3">
-                <h2 className="text-base font-semibold text-zinc-100">
-                    Recent entries
-                </h2>
+                                    return (
+                                        <button
+                                            key={cell.key}
+                                            type="button"
+                                            onClick={() =>
+                                                setSelectedDate(cell.isoDay)
+                                            }
+                                            className="h-10 w-10 place-self-center rounded-full"
+                                            aria-label={`Select ${cell.isoDay}`}
+                                            aria-pressed={isSelected}
+                                        >
+                                            <div className="relative grid h-10 w-10 place-items-center">
+                                                {isSelected ? (
+                                                    <div className="absolute inset-0 rounded-full bg-[var(--primary)] opacity-55" />
+                                                ) : null}
 
-                {error && (
-                    <div className="rounded-2xl border border-red-900/40 bg-red-950/40 px-4 py-3 text-sm text-red-200">
-                        {error}
-                    </div>
-                )}
+                                                <div className="relative z-10 text-xs text-[var(--muted)]">
+                                                    {cell.dayNumber}
+                                                </div>
 
-                {loading ? (
-                    <p className="text-sm text-zinc-400">Loading…</p>
-                ) : recentEntries.length === 0 ? (
-                    <div className="rounded-2xl border border-zinc-900 bg-zinc-950 p-4">
-                        <p className="text-sm text-zinc-300">No entries yet.</p>
-                        <p className="mt-1 text-xs text-zinc-500">
-                            Start by adding symptoms or a quick check-in.
-                        </p>
-                    </div>
-                ) : (
-                    <ul className="space-y-3">
-                        {recentEntries.map((l) => {
-                            const isoDay = dateOnly(l.log_date);
-                            const rel = relativeLabel(isoDay);
-
-                            const tagsLine = summarizeTags(l.tags_json);
-                            const showPain =
-                                typeof l.pain_intensity === "number"
-                                    ? l.pain_intensity
-                                    : null;
-
-                            const showEnergy =
-                                typeof l.energy_level === "string" &&
-                                l.energy_level
-                                    ? l.energy_level
-                                    : null;
-
-                            return (
-                                <li key={l.id}>
-                                    <Link
-                                        href={`/symptoms/new?date=${encodeURIComponent(
-                                            isoDay
-                                        )}`}
-                                        className="block rounded-2xl border border-zinc-900 bg-zinc-950 p-4 hover:border-zinc-800"
-                                    >
-                                        <div className="flex items-start justify-between gap-3">
-                                            <div className="min-w-0">
-                                                <p className="text-sm font-medium text-zinc-100">
-                                                    {rel ??
-                                                        formatShortDate(isoDay)}
-                                                </p>
-                                                <p className="mt-1 text-xs text-zinc-500">
-                                                    {formatLongDate(isoDay)}
-                                                </p>
+                                                {/* Severity markers (under the day number) */}
+                                                <div className="absolute bottom-1 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1">
+                                                    <Mark
+                                                        kind="high"
+                                                        on={
+                                                            !!markers?.highSymptoms
+                                                        }
+                                                    />
+                                                    <Mark
+                                                        kind="energy"
+                                                        on={
+                                                            !!markers?.lowEnergy
+                                                        }
+                                                    />
+                                                </div>
                                             </div>
-                                            <span className="text-zinc-400">
-                                                ›
-                                            </span>
-                                        </div>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    </Card>
 
-                                        <div className="mt-3 space-y-2 text-sm text-zinc-200">
-                                            {showPain !== null ? (
-                                                <div className="flex items-center gap-2">
-                                                    <span className="h-2 w-2 rounded-full bg-zinc-400" />
-                                                    <span>
-                                                        Pain level: {showPain}
-                                                    </span>
+                    <div className="mt-5 flex items-center justify-center gap-8 text-xs text-[var(--subtle)]">
+                        <div className="flex items-center gap-2">
+                            <Mark kind="high" on />
+                            <span>High symptoms</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <Mark kind="energy" on />
+                            <span>Low energy</span>
+                        </div>
+                    </div>
+                </section>
+
+                <section className="mt-12">
+                    <h2 className="font-serif text-3xl leading-tight text-[var(--fg)]">
+                        Recent entries
+                    </h2>
+
+                    {error ? (
+                        <Card className="mt-4 px-6 py-5">
+                            <div className="text-base text-[var(--muted)]">
+                                {error}
+                            </div>
+                        </Card>
+                    ) : null}
+
+                    {loading ? (
+                        <div className="mt-4 text-base text-[var(--muted)]">
+                            Loading…
+                        </div>
+                    ) : recentEntries.length === 0 ? (
+                        <Card className="mt-4 px-6 py-6">
+                            <div className="text-base text-[var(--fg)]">
+                                No entries yet.
+                            </div>
+                            <div className="mt-2 text-sm text-[var(--muted)]">
+                                Start by adding symptoms or a quick check-in.
+                            </div>
+                        </Card>
+                    ) : (
+                        <ul className="mt-5 space-y-4">
+                            {recentEntries.map((l) => {
+                                const isoDay = dateOnly(l.log_date);
+                                const rel = relativeLabel(isoDay);
+
+                                const tagsLine = summarizeTags(l.tags_json);
+                                const showPain =
+                                    typeof l.pain_intensity === "number"
+                                        ? l.pain_intensity
+                                        : null;
+                                const showEnergy =
+                                    typeof l.energy_level === "string" &&
+                                    l.energy_level
+                                        ? l.energy_level
+                                        : null;
+
+                                return (
+                                    <li key={l.id}>
+                                        <Link
+                                            href={`/symptoms/new?date=${encodeURIComponent(isoDay)}`}
+                                            className="block"
+                                        >
+                                            <Card className="px-6 py-5">
+                                                <div className="flex items-start justify-between gap-3">
+                                                    <div className="min-w-0">
+                                                        <div className="text-base text-[var(--fg)]">
+                                                            {rel ??
+                                                                formatShortDate(
+                                                                    isoDay,
+                                                                )}
+                                                        </div>
+                                                        <div className="mt-1 text-sm text-[var(--muted)]">
+                                                            {formatLongDate(
+                                                                isoDay,
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                    <svg
+                                                        viewBox="0 0 24 24"
+                                                        className="h-5 w-5 text-[var(--subtle)]"
+                                                        fill="none"
+                                                        stroke="currentColor"
+                                                        strokeWidth="2"
+                                                        strokeLinecap="round"
+                                                        strokeLinejoin="round"
+                                                        aria-hidden="true"
+                                                    >
+                                                        <path d="M9 18l6-6-6-6" />
+                                                    </svg>
                                                 </div>
-                                            ) : null}
 
-                                            {tagsLine ? (
-                                                <div className="flex items-center gap-2">
-                                                    <span className="h-2 w-2 rounded-full bg-zinc-500" />
-                                                    <span>{tagsLine}</span>
+                                                <div className="mt-4 space-y-3 text-sm text-[var(--muted)]">
+                                                    {showPain !== null ? (
+                                                        <div className="flex items-center gap-2">
+                                                            <Mark
+                                                                kind="mild"
+                                                                on
+                                                            />
+                                                            <span>
+                                                                Pain level:{" "}
+                                                                {showPain}
+                                                            </span>
+                                                        </div>
+                                                    ) : null}
+
+                                                    {tagsLine ? (
+                                                        <div className="flex items-center gap-2">
+                                                            <Mark
+                                                                kind="high"
+                                                                on
+                                                            />
+                                                            <span>
+                                                                {tagsLine}
+                                                            </span>
+                                                        </div>
+                                                    ) : null}
+
+                                                    {showEnergy ? (
+                                                        <div className="flex items-center gap-2">
+                                                            <Mark
+                                                                kind="energy"
+                                                                on
+                                                            />
+                                                            <span>
+                                                                Energy:{" "}
+                                                                {showEnergy}
+                                                            </span>
+                                                        </div>
+                                                    ) : null}
                                                 </div>
-                                            ) : null}
+                                            </Card>
+                                        </Link>
+                                    </li>
+                                );
+                            })}
+                        </ul>
+                    )}
+                </section>
 
-                                            {showEnergy ? (
-                                                <div className="flex items-center gap-2">
-                                                    <span className="h-2 w-2 rounded-full bg-zinc-300" />
-                                                    <span>
-                                                        Energy: {showEnergy}
-                                                    </span>
-                                                </div>
-                                            ) : null}
-                                        </div>
-                                    </Link>
-                                </li>
-                            );
-                        })}
-                    </ul>
-                )}
-            </section>
+                <section className="mt-10 flex flex-col gap-4">
+                    <Link
+                        href="/insights"
+                        className="inline-flex h-14 w-full items-center justify-center rounded-full border border-[color-mix(in_oklch,var(--primary)_55%,var(--border)_45%)] bg-[color-mix(in_oklch,var(--primary)_10%,white_90%)] px-6 text-base font-medium text-[color-mix(in_oklch,var(--primary)_55%,var(--fg)_45%)] hover:opacity-95"
+                    >
+                        View insights
+                    </Link>
 
-            {/* CTAs */}
-            <section className="space-y-3 pt-2">
-                <Link
-                    href="/insights"
-                    className="inline-flex h-12 w-full items-center justify-center rounded-full border border-zinc-800 bg-zinc-950 text-sm font-medium text-zinc-200 hover:border-zinc-700"
-                >
-                    View insights
-                </Link>
-
-                <Link
-                    href={`/symptoms/new?date=${encodeURIComponent(
-                        selectedDate
-                    )}`}
-                    className="inline-flex h-12 w-full items-center justify-center rounded-full bg-zinc-100 text-sm font-medium text-zinc-950 hover:bg-white"
-                >
-                    Add symptoms
-                </Link>
-            </section>
+                    <Link
+                        href={`/symptoms/new?date=${encodeURIComponent(selectedDate)}`}
+                        className="inline-flex h-14 w-full items-center justify-center rounded-full
+    bg-[var(--primary)]
+    px-6
+    text-base font-medium
+    text-[var(--primary-fg)]
+    shadow-sm
+    hover:opacity-90"
+                    >
+                        Add symptoms
+                    </Link>
+                </section>
+            </div>
         </main>
     );
 }
