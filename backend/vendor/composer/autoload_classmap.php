@@ -11,6 +11,7 @@ return array(
     'App\\Controllers\\CommunityPatternsController' => $baseDir . '/app/Controllers/CommunityPatternsController.php',
     'App\\Controllers\\InsightsController' => $baseDir . '/app/Controllers/InsightsController.php',
     'App\\Controllers\\PostController' => $baseDir . '/app/Controllers/PostController.php',
+    'App\\Controllers\\ProfileController' => $baseDir . '/app/Controllers/ProfileController.php',
     'App\\Controllers\\ReportsController' => $baseDir . '/app/Controllers/ReportsController.php',
     'App\\Controllers\\SymptomController' => $baseDir . '/app/Controllers/SymptomController.php',
     'App\\Controllers\\SymptomStatsController' => $baseDir . '/app/Controllers/SymptomStatsController.php',

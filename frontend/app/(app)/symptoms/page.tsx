@@ -5,7 +5,6 @@ import Link from "next/link";
 import { listSymptomLogs, SymptomLog } from "@/lib/symptoms";
 import { ApiException } from "@/lib/api";
 import { Card } from "@/components/ui/Card";
-import { Button } from "@/components/ui/Button";
 
 function todayISO(): string {
     return new Date().toISOString().slice(0, 10);

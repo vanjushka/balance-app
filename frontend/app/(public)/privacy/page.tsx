@@ -52,7 +52,7 @@ export default function PrivacyPage() {
                     {/* Data collection */}
                     <div className="mt-8 h-px w-full bg-[color-mix(in_oklch,var(--border)_50%,transparent_50%)]" />
 
-                    <h2 className="mt-6 text-sm font-medium text-[var(--fg)]">
+                    <h2 className="privacy-h2 mt-6 text-sm font-medium text-[var(--fg)]">
                         Data we collect
                     </h2>
 
@@ -73,7 +73,7 @@ export default function PrivacyPage() {
                     {/* Health data */}
                     <div className="mt-8 h-px w-full bg-[color-mix(in_oklch,var(--border)_50%,transparent_50%)]" />
 
-                    <h2 className="mt-6 text-sm font-medium text-[var(--fg)]">
+                    <h2 className="privacy-h2 mt-6 text-sm font-medium text-[var(--fg)]">
                         Health-related data
                     </h2>
 
@@ -92,7 +92,7 @@ export default function PrivacyPage() {
                     {/* Data usage */}
                     <div className="mt-8 h-px w-full bg-[color-mix(in_oklch,var(--border)_50%,transparent_50%)]" />
 
-                    <h2 className="mt-6 text-sm font-medium text-[var(--fg)]">
+                    <h2 className="privacy-h2 mt-6 text-sm font-medium text-[var(--fg)]">
                         How data is used
                     </h2>
 
@@ -111,7 +111,7 @@ export default function PrivacyPage() {
                     {/* Data storage & security */}
                     <div className="mt-8 h-px w-full bg-[color-mix(in_oklch,var(--border)_50%,transparent_50%)]" />
 
-                    <h2 className="mt-6 text-sm font-medium text-[var(--fg)]">
+                    <h2 className="privacy-h2 mt-6 text-sm font-medium text-[var(--fg)]">
                         Data storage and security
                     </h2>
 
@@ -125,7 +125,7 @@ export default function PrivacyPage() {
                     {/* User rights */}
                     <div className="mt-8 h-px w-full bg-[color-mix(in_oklch,var(--border)_50%,transparent_50%)]" />
 
-                    <h2 className="mt-6 text-sm font-medium text-[var(--fg)]">
+                    <h2 className="privacy-h2 mt-6 text-sm font-medium text-[var(--fg)]">
                         Your rights
                     </h2>
 
