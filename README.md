@@ -3,7 +3,7 @@
 **Modul:** Portfolio – Creative Studio 1: Industry Workflows
 **Studentin:** Vanja Dunkel
 **Schule:** SAE Zürich
-**Jahr:** 2025
+**Jahr:** 2026
 
 ---
 
