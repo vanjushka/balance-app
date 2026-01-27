@@ -68,6 +68,8 @@ export default function DashboardPage() {
 
     if (!user) return null;
 
+    const displayName = user.profile?.display_name?.trim() || "";
+
     async function saveCheckIn() {
         setSaveError(null);
         setSaveSuccess(null);
@@ -87,7 +89,7 @@ export default function DashboardPage() {
         const payload: CreateSymptomLogPayload = {
             log_date: today,
             pain_intensity: pain,
-            energy_level: energy, // ✅ never null
+            energy_level: energy,
             notes: note.trim() ? note.trim() : null,
         };
 
@@ -158,7 +160,8 @@ export default function DashboardPage() {
 
             <section className="space-y-3">
                 <h1 className="font-serif text-[2.65rem] leading-[1.03] tracking-tight text-[var(--fg)]">
-                    How are you feeling today, Vanja?
+                    How are you feeling today
+                    {displayName ? `, ${displayName}` : ""}?
                 </h1>
                 <p className="text-[15px] leading-relaxed text-[var(--muted)]">
                     A gentle moment to acknowledge what you are noticing.
@@ -182,7 +185,6 @@ export default function DashboardPage() {
                         </div>
                     </div>
 
-                    {/* Slider */}
                     <div className="mt-6">
                         <div className="flex items-end justify-between">
                             <p className="text-xs text-[var(--subtle)]">None</p>

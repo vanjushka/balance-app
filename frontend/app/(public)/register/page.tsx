@@ -25,7 +25,9 @@ export default function RegisterPage() {
 
         try {
             await register({
-                name: name.trim() || undefined,
+                profile: name.trim()
+                    ? { display_name: name.trim() }
+                    : undefined,
                 email: email.trim().toLowerCase(),
                 password,
                 password_confirmation: passwordConfirmation,
@@ -52,7 +54,6 @@ export default function RegisterPage() {
     return (
         <main className="min-h-[100dvh] bg-[var(--bg)] px-6 pb-20 pt-8 text-[var(--fg)]">
             <div className="mx-auto w-full max-w-md">
-                {/* Top bar */}
                 <header className="flex items-center justify-between">
                     <button
                         type="button"
@@ -78,7 +79,6 @@ export default function RegisterPage() {
                     <span className="h-11 w-11" aria-hidden />
                 </header>
 
-                {/* Heading */}
                 <section className="mt-10 space-y-4">
                     <h1 className="font-serif text-[2.35rem] leading-[1.08] tracking-tight text-[var(--fg)]">
                         Create your personal space
@@ -90,7 +90,6 @@ export default function RegisterPage() {
                     </p>
                 </section>
 
-                {/* Form */}
                 <form onSubmit={onSubmit} className="mt-12 space-y-8">
                     <label className="block">
                         <span className="block text-sm font-medium text-[var(--fg)]">
@@ -197,7 +196,6 @@ export default function RegisterPage() {
                         </div>
                     )}
 
-                    {/* Actions */}
                     <div className="pt-10">
                         <button
                             type="submit"

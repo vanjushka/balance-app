@@ -5,25 +5,28 @@ namespace App\Controllers;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 
 class UserController
 {
-    /** Register */
     public function create(Request $request)
     {
         $data = $request->validate([
-            'email'    => ['required','email','max:190','unique:users,email'],
-            'password' => ['required','string','min:8','max:64','confirmed'], // expects password_confirmation
-            'profile'  => ['sometimes','array'],
+            'email' => ['required', 'email', 'max:190', 'unique:users,email'],
+            'password' => ['required', 'string', 'min:8', 'max:64', 'confirmed'],
+            'profile' => ['nullable', 'array'],
+            'profile.display_name' => ['nullable', 'string', 'min:2', 'max:40'],
         ]);
 
         $email = strtolower(trim($data['email']));
 
+        $profile = $this->normalizeProfile($data['profile'] ?? null);
+
         $user = User::create([
-            'email'    => $email,
-            'password' => $data['password'], // hashed via mutator
-            'profile'  => $data['profile'] ?? null,
+            'email' => $email,
+            'password' => $data['password'],
+            'profile' => $profile,
             'is_admin' => false,
         ]);
 
@@ -32,31 +35,32 @@ class UserController
         return response()->json(['user' => $user->fresh(), 'token' => $token], 201);
     }
 
-    /** Me */
     public function index(Request $request)
     {
         return response()->json(['user' => $request->user()], 200);
     }
 
-    /** Update me */
     public function update(Request $request)
     {
         $user = $request->user();
 
         $data = $request->validate([
-            'email'    => ['sometimes','email','max:190', Rule::unique('users','email')->ignore($user->id)],
-            'password' => ['sometimes','string','min:8','max:64','confirmed'], // erlaubt optionales change mit confirmation
-            'profile'  => ['sometimes','array'],
+            'email' => ['sometimes', 'email', 'max:190', Rule::unique('users', 'email')->ignore($user->id)],
+            'password' => ['sometimes', 'string', 'min:8', 'max:64', 'confirmed'],
+            'profile' => ['sometimes', 'array'],
+            'profile.display_name' => ['nullable', 'string', 'min:2', 'max:40'],
         ]);
 
         if (array_key_exists('email', $data)) {
             $user->email = strtolower(trim($data['email']));
         }
+
         if (array_key_exists('password', $data)) {
-            $user->password = $data['password']; // mutator hashes
+            $user->password = $data['password'];
         }
+
         if (array_key_exists('profile', $data)) {
-            $user->profile = $data['profile'];
+            $user->profile = $this->normalizeProfile($data['profile']);
         }
 
         $user->save();
@@ -64,19 +68,18 @@ class UserController
         return response()->json(['user' => $user->fresh()], 200);
     }
 
-    /** Delete account (+ cleanup files like reports) */
-public function destroy(Request $request)
-{
-    $user = $request->user();
+    public function destroy(Request $request)
+    {
+        $user = $request->user();
 
-    // 1. Logout & Session cleanup 
-    Auth::guard('web')->logout();
-    $request->session()->invalidate();
-    $request->session()->regenerateToken();
+        Auth::guard('web')->logout();
 
-    // 2. Cleanup reports / files 
-    if (method_exists($user, 'reports')) {
-        foreach ($user->reports as $rep) {
+        if ($request->hasSession()) {
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+        }
+
+        foreach ($user->reports()->get() as $rep) {
             if (!empty($rep->file_path)) {
                 try {
                     Storage::disk('reports')->delete($rep->file_path);
@@ -85,11 +88,25 @@ public function destroy(Request $request)
                 }
             }
         }
+
+        $user->delete();
+
+        return response()->json(['message' => 'Account deleted'], 200);
     }
 
-    // 3. Delete user (cascade)
-    $user->delete();
+    private function normalizeProfile(?array $profile): ?array
+    {
+        if ($profile === null) return null;
 
-    return response()->json(['message' => 'Account deleted'], 200);
-}
+        if (array_key_exists('display_name', $profile)) {
+            $displayName = trim((string) $profile['display_name']);
+            if ($displayName === '') {
+                unset($profile['display_name']);
+            } else {
+                $profile['display_name'] = $displayName;
+            }
+        }
+
+        return $profile === [] ? null : $profile;
+    }
 }

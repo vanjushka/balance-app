@@ -74,7 +74,8 @@ export default function ProfilePage() {
                 if (!alive) return;
 
                 const displayName =
-                    me.user.profile?.name?.trim() || me.user.email;
+                    me.user.profile?.display_name?.trim() || me.user.email;
+
                 setName(displayName);
                 setTrackingSince(summary.data.tracking_since);
                 setDaysTracked(summary.data.days_tracked);
@@ -127,8 +128,12 @@ export default function ProfilePage() {
     }
 
     const supportEmail = "support@balance.test";
-    const helpCenterHref = `mailto:${supportEmail}?subject=${encodeURIComponent("Balance — Help Center")}`;
-    const feedbackHref = `mailto:${supportEmail}?subject=${encodeURIComponent("Balance — Feedback")}`;
+    const helpCenterHref = `mailto:${supportEmail}?subject=${encodeURIComponent(
+        "Balance — Help Center",
+    )}`;
+    const feedbackHref = `mailto:${supportEmail}?subject=${encodeURIComponent(
+        "Balance — Feedback",
+    )}`;
 
     return (
         <main className="min-h-[100dvh] bg-[var(--bg)] px-6 pb-28 pt-10">
@@ -158,7 +163,6 @@ export default function ProfilePage() {
                 </div>
 
                 <div className="mt-10 space-y-6">
-                    {/* Journey Card */}
                     <Card className="overflow-hidden">
                         <div className="px-6 pt-6">
                             <div className="text-xs uppercase tracking-[0.14em] text-[var(--subtle)]">
@@ -181,7 +185,6 @@ export default function ProfilePage() {
                         />
                     </Card>
 
-                    {/* Settings */}
                     <Card className="overflow-hidden">
                         <div className="px-6 pt-6">
                             <div className="text-xs uppercase tracking-[0.14em] text-[var(--subtle)]">
@@ -206,7 +209,6 @@ export default function ProfilePage() {
                         </div>
                     </Card>
 
-                    {/* Support */}
                     <Card className="overflow-hidden">
                         <div className="px-6 pt-6">
                             <div className="text-xs uppercase tracking-[0.14em] text-[var(--subtle)]">

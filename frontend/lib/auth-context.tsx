@@ -13,8 +13,10 @@ import { ApiException } from "@/lib/api";
 
 export type User = {
     id: number;
-    name?: string | null;
     email: string;
+    profile?: {
+        display_name?: string | null;
+    } | null;
 };
 
 type AuthContextType = {

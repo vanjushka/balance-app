@@ -8,7 +8,7 @@ export type MeResponse = {
         profile?: {
             tz?: string;
             goal?: string;
-            name?: string;
+            display_name?: string;
             diagnosis?: string;
         } | null;
         created_at: string;

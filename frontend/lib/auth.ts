@@ -1,8 +1,9 @@
-// lib/auth.ts
 import { api, csrfCookie } from "@/lib/api";
 
 export type RegisterPayload = {
-    name?: string;
+    profile?: {
+        display_name?: string;
+    };
     email: string;
     password: string;
     password_confirmation: string;
