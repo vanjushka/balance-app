@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Auth;
 
 class AuthController
 {
-    /** POST /api/auth/login */
+    
     public function login(Request $request)
     {
         $credentials = $request->validate([
@@ -28,7 +28,7 @@ class AuthController
         ], 200);
     }
 
-    /** GET /api/auth/me */
+    
     public function me(Request $request)
     {
         return response()->json([
@@ -36,7 +36,7 @@ class AuthController
         ], 200);
     }
 
-    /** POST /api/auth/logout */
+
     public function logout(Request $request)
     {
         Auth::guard('web')->logout();

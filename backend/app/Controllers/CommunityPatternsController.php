@@ -11,7 +11,6 @@ class CommunityPatternsController
 {
     public function show(Request $request)
     {
-        // Validate QUERY input explicitly (because this is a GET endpoint)
         $v = Validator::make($request->query(), [
             'range' => ['required', 'in:30,90'],
         ]);
@@ -19,27 +18,24 @@ class CommunityPatternsController
         if ($v->fails()) {
             return response()->json([
                 'message' => 'Validation failed',
-                'errors'  => $v->errors(),
+                'errors' => $v->errors(),
             ], 422);
         }
 
         $rangeDays = (int) $request->query('range');
-        $tz = 'UTC';
+        $now = now('UTC');
 
-        // Keep dates aligned with frontend: UTC date-only window
-        $dateTo   = now('UTC')->toDateString();
-        $dateFrom = now('UTC')->subDays($rangeDays - 1)->toDateString();
+        $dateTo = $now->toDateString();
+        $dateFrom = $now->copy()->subDays($rangeDays - 1)->toDateString();
 
         $currentUserId = Auth::id();
 
-        // Aggregate across ALL users except current user (anonymized)
         $base = DB::table('symptom_logs')
             ->whereBetween('log_date', [$dateFrom, $dateTo])
             ->where('user_id', '!=', $currentUserId);
 
         $totalLogs = (int) (clone $base)->count();
 
-        // If dataset is small, return stable generic patterns
         if ($totalLogs < 25) {
             return response()->json([
                 'data' => [
@@ -51,18 +47,17 @@ class CommunityPatternsController
                     'disclaimer' => 'Community patterns are anonymized and generalized. They do not provide medical advice.',
                 ],
                 'meta' => [
-                    'range_days'    => $rangeDays,
-                    'date_from'     => $dateFrom,
-                    'date_to'       => $dateTo,
-                    'timezone'      => $tz,
-                    'generated_at'  => now('UTC')->toISOString(),
-                    'cached'        => false,
-                    'logs_count'    => $totalLogs,
+                    'range_days' => $rangeDays,
+                    'date_from' => $dateFrom,
+                    'date_to' => $dateTo,
+                    'timezone' => 'UTC',
+                    'generated_at' => $now->toISOString(),
+                    'cached' => false,
+                    'logs_count' => $totalLogs,
                 ],
             ]);
         }
 
-        // Pattern 1: % of logs with high pain (>=6)
         $highPain = (int) (clone $base)
             ->whereNotNull('pain_intensity')
             ->where('pain_intensity', '>=', 6)
@@ -70,17 +65,15 @@ class CommunityPatternsController
 
         $highPainPct = $totalLogs > 0 ? (int) round(($highPain / $totalLogs) * 100) : 0;
 
-        // Pattern 2: % of logs with low energy (depleted/low)
         $lowEnergy = (int) (clone $base)
             ->whereIn('energy_level', ['depleted', 'low'])
             ->count();
 
         $lowEnergyPct = $totalLogs > 0 ? (int) round(($lowEnergy / $totalLogs) * 100) : 0;
 
-        // Pattern 3: top tag (best-effort, safe fallback)
         $topTag = null;
+
         try {
-            // Use your canonical tags (small subset for quick aggregation)
             $known = ['bloating', 'acne', 'cramps', 'headache', 'nausea', 'insomnia', 'brain_fog', 'mood_swings'];
             $counts = [];
 
@@ -93,6 +86,7 @@ class CommunityPatternsController
             arsort($counts);
 
             $candidate = array_key_first($counts);
+
             if ($candidate && ($counts[$candidate] ?? 0) > 0) {
                 $topTag = $candidate;
             }
@@ -105,22 +99,22 @@ class CommunityPatternsController
             "Low energy is common: around {$lowEnergyPct}% of check-ins report low or depleted energy.",
             $topTag
                 ? "A frequently logged symptom tag is “{$topTag}”, appearing across many check-ins."
-                : "Symptom tags often cluster over several days, especially when multiple symptoms overlap.",
+                : 'Symptom tags often cluster over several days, especially when multiple symptoms overlap.',
         ];
 
         return response()->json([
             'data' => [
-                'patterns'    => array_slice($patterns, 0, 3),
-                'disclaimer'  => 'Community patterns are anonymized and generalized. They do not provide medical advice.',
+                'patterns' => array_slice($patterns, 0, 3),
+                'disclaimer' => 'Community patterns are anonymized and generalized. They do not provide medical advice.',
             ],
             'meta' => [
-                'range_days'   => $rangeDays,
-                'date_from'    => $dateFrom,
-                'date_to'      => $dateTo,
-                'timezone'     => $tz,
-                'generated_at' => now('UTC')->toISOString(),
-                'cached'       => false,
-                'logs_count'   => $totalLogs,
+                'range_days' => $rangeDays,
+                'date_from' => $dateFrom,
+                'date_to' => $dateTo,
+                'timezone' => 'UTC',
+                'generated_at' => $now->toISOString(),
+                'cached' => false,
+                'logs_count' => $totalLogs,
             ],
         ]);
     }

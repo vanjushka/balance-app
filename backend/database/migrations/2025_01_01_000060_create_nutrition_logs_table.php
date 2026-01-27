@@ -2,7 +2,7 @@
 
 <?php
 
-//optional but i would like to include!
+//would like to include this feature later
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;

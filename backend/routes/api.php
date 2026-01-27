@@ -6,8 +6,6 @@ use App\Controllers\AuthController;
 use App\Controllers\UserController;
 use App\Controllers\SymptomController;
 use App\Controllers\SymptomStatsController;
-use App\Controllers\PostController;
-use App\Controllers\CommentsController;
 use App\Controllers\ReportsController;
 use App\Controllers\InsightsController;
 use App\Controllers\CommunityPatternsController;
@@ -90,22 +88,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::patch('/symptoms/{id}', [SymptomController::class, 'update'])->whereNumber('id');
     Route::delete('/symptoms/{id}', [SymptomController::class, 'destroy'])->whereNumber('id');
 
-    /*
-    |----------------------------------------------------------------------
-    | Posts + Comments
-    |----------------------------------------------------------------------
-    */
-    Route::get('/posts', [PostController::class, 'index']);
-    Route::get('/posts/{id}', [PostController::class, 'show'])->whereNumber('id');
-    Route::post('/posts', [PostController::class, 'create']);
-    Route::patch('/posts/{id}', [PostController::class, 'update'])->whereNumber('id');
-    Route::delete('/posts/{id}', [PostController::class, 'destroy'])->whereNumber('id');
-    Route::post('/posts/{id}/like', [PostController::class, 'like'])->whereNumber('id');
-
-    Route::get('/posts/{postId}/comments', [CommentsController::class, 'index'])->whereNumber('postId');
-    Route::post('/posts/{postId}/comments', [CommentsController::class, 'create'])->whereNumber('postId');
-    Route::patch('/comments/{id}', [CommentsController::class, 'update'])->whereNumber('id');
-    Route::delete('/comments/{id}', [CommentsController::class, 'destroy'])->whereNumber('id');
 
     /*
     |----------------------------------------------------------------------

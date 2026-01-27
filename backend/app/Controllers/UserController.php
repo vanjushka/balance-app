@@ -16,7 +16,7 @@ class UserController
             'email' => ['required', 'email', 'max:190', 'unique:users,email'],
             'password' => ['required', 'string', 'min:8', 'max:64', 'confirmed'],
             'profile' => ['nullable', 'array'],
-            'profile.display_name' => ['nullable', 'string', 'min:2', 'max:40'],
+            'profile.display_name' => ['sometimes', 'nullable', 'string', 'min:2', 'max:40'],
         ]);
 
         $email = strtolower(trim($data['email']));

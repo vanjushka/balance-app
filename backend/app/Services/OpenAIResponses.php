@@ -27,7 +27,6 @@ class OpenAIResponses
             throw new \RuntimeException($msg);
         }
 
-        // Responses API returns a convenience field: output_text
         $text = $res->json('output_text');
         if (!is_string($text) || trim($text) === '') {
             throw new \RuntimeException('OpenAI returned empty output');
