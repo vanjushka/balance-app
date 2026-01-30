@@ -18,7 +18,7 @@ export type MeResponse = {
 
 export type ProfileSummaryResponse = {
     data: {
-        tracking_since: string | null; // YYYY-MM-DD
+        tracking_since: string | null;
         days_tracked: number;
         cycles_recorded: number | null;
         patterns_discovered: number | null;

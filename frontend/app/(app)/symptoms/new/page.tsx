@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import {
     createSymptomLog,
     listSymptomLogsForDate,
@@ -130,7 +130,6 @@ function normalizeErrors(err: unknown): {
 }
 
 export default function NewSymptomPage() {
-    const router = useRouter();
     const searchParams = useSearchParams();
 
     const initialDate = useMemo(() => {
@@ -139,13 +138,14 @@ export default function NewSymptomPage() {
     }, [searchParams]);
 
     const [logDate, setLogDate] = useState(initialDate);
-
     const [selected, setSelected] = useState<Set<string>>(new Set());
 
     const [submitting, setSubmitting] = useState(false);
     const [formError, setFormError] = useState<string | null>(null);
     const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
     const [info, setInfo] = useState<string | null>(null);
+
+    const [loadingExisting, setLoadingExisting] = useState(false);
 
     const selectedCount = selected.size;
 
@@ -156,6 +156,41 @@ export default function NewSymptomPage() {
         const first = existing[0] ?? null;
         return first;
     }
+
+    useEffect(() => {
+        let alive = true;
+
+        async function hydrateFromExisting(date: string) {
+            setLoadingExisting(true);
+            setFormError(null);
+            setFieldErrors({});
+
+            try {
+                const existing = await loadExistingForDate(date);
+                if (!alive) return;
+
+                if (existing && Array.isArray(existing.tags_json)) {
+                    setSelected(new Set(existing.tags_json));
+                    setInfo("Loaded existing entry for this date.");
+                } else {
+                    setSelected(new Set());
+                    setInfo(null);
+                }
+            } catch (e) {
+                if (!alive) return;
+                setSelected(new Set());
+                setInfo(null);
+            } finally {
+                if (alive) setLoadingExisting(false);
+            }
+        }
+
+        void hydrateFromExisting(logDate);
+
+        return () => {
+            alive = false;
+        };
+    }, [logDate]);
 
     async function saveTags() {
         setFormError(null);
@@ -170,7 +205,7 @@ export default function NewSymptomPage() {
 
         try {
             await createSymptomLog(payload);
-            router.replace(`/symptoms?date=${encodeURIComponent(logDate)}`);
+            routerReplace(`/symptoms?date=${encodeURIComponent(logDate)}`);
         } catch (err) {
             if (isConflict409(err)) {
                 try {
@@ -186,7 +221,7 @@ export default function NewSymptomPage() {
                         tags_json: payload.tags_json,
                     });
 
-                    router.replace(
+                    routerReplace(
                         `/symptoms?date=${encodeURIComponent(logDate)}`,
                     );
                 } catch (inner) {
@@ -205,6 +240,10 @@ export default function NewSymptomPage() {
         } finally {
             setSubmitting(false);
         }
+    }
+
+    function routerReplace(href: string) {
+        window.location.href = href;
     }
 
     function clearAll() {
@@ -260,6 +299,12 @@ export default function NewSymptomPage() {
                     </p>
                 </section>
 
+                {loadingExisting ? (
+                    <div className="mt-6 text-sm text-[var(--muted)]">
+                        Loading entry…
+                    </div>
+                ) : null}
+
                 {info && (
                     <div className="mt-6 rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] px-5 py-4 text-sm text-[var(--muted)]">
                         {info}
@@ -308,7 +353,6 @@ export default function NewSymptomPage() {
                     {GROUPS.map((g) => (
                         <section key={g.title} className="space-y-4">
                             <div>
-                                {/* section titles: SANS */}
                                 <h2 className="!font-sans text-[15px] font-medium leading-tight text-[var(--fg)]">
                                     {g.title}
                                 </h2>

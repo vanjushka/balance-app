@@ -1,4 +1,3 @@
-// lib/insights.ts
 import { api } from "@/lib/api";
 
 export type InsightsRange = 30 | 90;
@@ -62,11 +61,6 @@ export async function getInsightsSummary(
     });
 }
 
-/**
- * Shared patterns (community aggregation)
- * - Fully anonymized
- * - Backend may return 3, but keep type flexible; UI can slice(0, 3).
- */
 export type SharedPatternsResponse = {
     data: {
         patterns: string[];

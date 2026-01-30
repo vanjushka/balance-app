@@ -28,7 +28,6 @@ export function CardContent({ className, ...props }: CardSectionProps) {
     return <div className={cx("px-6 pb-6", className)} {...props} />;
 }
 
-/** For simple cards that just need 24px padding on all sides */
 export function CardBody({ className, ...props }: CardSectionProps) {
     return <div className={cx("p-6", className)} {...props} />;
 }
@@ -49,7 +48,6 @@ export function CardTitle({ className, ...props }: CardTitleProps) {
 
 type CardDividerProps = React.HTMLAttributes<HTMLHRElement>;
 
-/** Divider with consistent color + 24px horizontal inset */
 export function CardDivider({ className, ...props }: CardDividerProps) {
     return (
         <hr

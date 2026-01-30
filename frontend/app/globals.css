@@ -1,10 +1,9 @@
 @import "tailwindcss";
 
-/* SEMANTIC TOKENS (used by UI) */
 :root {
     --radius-card: 24px;
 
-    /* LIGHT (default) */
+    /* LIGHT  */
     --background: #faf9f7;
     --foreground: #171717;
 
@@ -14,7 +13,6 @@
     --input-bg: #ffffff;
     --input-border: #d1d5db;
 
-    /* semantic usage */
     --bg: var(--background);
     --fg: var(--foreground);
     --surface: var(--card-bg);
@@ -31,7 +29,6 @@
     --danger: #d64040;
     --danger-fg: #ffffff;
 
-    /* MARKERS */
     --mark-high: color-mix(in oklch, var(--primary) 78%, var(--fg) 22%);
     --mark-mild: color-mix(in oklch, #c88a2a 78%, var(--fg) 22%);
     --mark-energy: color-mix(in oklch, var(--primary) 35%, #b08a6a 65%);
@@ -39,7 +36,7 @@
     --mark-shadow: 0 1px 0 rgba(0, 0, 0, 0.18);
 }
 
-/* DARK (optional toggle via <html class="dark">) */
+/* DARK  */
 .dark {
     --background: #0a0a0a;
     --foreground: #ededed;
@@ -73,7 +70,6 @@
     --mark-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
 }
 
-/* Tailwind CSS v4 theme linking */
 @theme inline {
     --color-background: var(--background);
     --color-foreground: var(--foreground);
@@ -123,11 +119,11 @@ textarea::placeholder {
     color: var(--subtle);
 }
 
-/* Pain slider (mobile-friendly) */
+/* Pain slider  */
 .pain-slider {
     -webkit-appearance: none;
     appearance: none;
-    height: 44px; /* big touch area */
+    height: 44px;
     background: transparent;
     cursor: pointer;
 }
@@ -138,10 +134,9 @@ textarea::placeholder {
     border-radius: 999px;
     background: linear-gradient(
         90deg,
-        /* left = calm muted/green-ish */
         color-mix(in oklch, var(--primary) 25%, var(--border) 75%),
-        /* mid */ color-mix(in oklch, #f59e0b 55%, var(--border) 45%),
-        /* right = red */ color-mix(in oklch, #ef4444 70%, var(--border) 30%)
+        color-mix(in oklch, #f59e0b 55%, var(--border) 45%),
+        color-mix(in oklch, #ef4444 70%, var(--border) 30%)
     );
     box-shadow: inset 0 0 0 1px
         color-mix(in oklch, var(--border) 75%, transparent 25%);
@@ -218,7 +213,6 @@ textarea::placeholder {
     animation: auraPulse 6.8s ease-in-out infinite;
 }
 
-/* Force sans headings for legal pages */
 .privacy-h2 {
     font-family: var(--font-inter) !important;
 }

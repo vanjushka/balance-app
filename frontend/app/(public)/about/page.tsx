@@ -6,7 +6,6 @@ export default function AboutPage() {
     return (
         <main className="min-h-[100dvh] bg-[var(--bg)] px-6 pb-20 pt-8 text-[var(--fg)]">
             <div className="mx-auto w-full max-w-md">
-                {/* Top bar */}
                 <header className="flex items-center justify-between">
                     <button
                         type="button"
@@ -34,13 +33,11 @@ export default function AboutPage() {
                     <span className="h-11 w-11" aria-hidden />
                 </header>
 
-                {/* Content */}
                 <section className="mt-12">
                     <h1 className="font-serif text-[2.1rem] leading-[1.1] tracking-tight text-[var(--fg)]">
                         About Balance
                     </h1>
 
-                    {/* divider under title */}
                     <div className="mt-4 h-px w-full bg-[color-mix(in_oklch,var(--border)_65%,transparent_35%)]" />
 
                     <p className="mt-6 text-[15px] leading-6 text-[var(--subtle)]">

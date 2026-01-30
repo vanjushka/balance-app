@@ -18,6 +18,8 @@ export default function LoginPage() {
     const [error, setError] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
 
+    const canSubmit = email.trim() !== "" && password.trim() !== "" && !loading;
+
     async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
         e.preventDefault();
         setError(null);
@@ -44,14 +46,21 @@ export default function LoginPage() {
         }
     }
 
+    function handleBack() {
+        if (typeof window !== "undefined" && window.history.length <= 1) {
+            router.push("/");
+            return;
+        }
+        router.back();
+    }
+
     return (
         <main className="min-h-[100dvh] bg-[var(--bg)] px-6 pb-20 pt-8 text-[var(--fg)]">
             <div className="mx-auto w-full max-w-md">
-                {/* Top bar */}
                 <header className="flex items-center justify-between">
                     <button
                         type="button"
-                        onClick={() => router.back()}
+                        onClick={handleBack}
                         className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-[var(--border)] bg-[color-mix(in_oklch,var(--surface)_85%,var(--bg)_15%)] text-[var(--muted)] shadow-[0_1px_0_rgba(0,0,0,0.03)] hover:text-[var(--fg)]"
                         aria-label="Back"
                         title="Back"
@@ -73,14 +82,12 @@ export default function LoginPage() {
                     <span className="h-11 w-11" aria-hidden />
                 </header>
 
-                {/* Heading */}
                 <section className="mt-10 space-y-3">
                     <h1 className="font-serif text-[2.35rem] leading-[1.08] tracking-tight text-[var(--fg)]">
                         Return to your space
                     </h1>
                 </section>
 
-                {/* Form */}
                 <form onSubmit={onSubmit} className="mt-12 space-y-8">
                     <label className="block">
                         <span className="block text-sm font-medium text-[var(--fg)]">
@@ -127,7 +134,6 @@ export default function LoginPage() {
                                     showPw ? "Hide password" : "Show password"
                                 }
                             >
-                                {/* eye icon */}
                                 <svg
                                     viewBox="0 0 24 24"
                                     className="h-5 w-5"
@@ -148,7 +154,10 @@ export default function LoginPage() {
                     <div className="pt-2 text-center">
                         <button
                             type="button"
-                            className="text-sm text-[var(--subtle)] hover:text-[var(--muted)]"
+                            disabled
+                            aria-disabled="true"
+                            className="text-sm text-[var(--subtle)] opacity-70 cursor-not-allowed"
+                            title="Not available in demo"
                         >
                             Forgot password?
                         </button>
@@ -160,11 +169,10 @@ export default function LoginPage() {
                         </div>
                     )}
 
-                    {/* Actions */}
                     <div className="pt-10">
                         <button
                             type="submit"
-                            disabled={loading}
+                            disabled={!canSubmit}
                             className="inline-flex h-14 w-full items-center justify-center rounded-full bg-[var(--primary)] px-6 text-base font-medium text-[var(--primary-fg)] shadow-sm hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
                         >
                             {loading ? "Logging in…" : "Log in"}

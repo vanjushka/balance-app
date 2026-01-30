@@ -129,7 +129,6 @@ function summarizeTags(tags?: string[] | null): string | null {
 type MarkKind = "high" | "mild" | "energy";
 
 function markClass(kind: MarkKind, on?: boolean) {
-    // keep spacing consistent even when off
     const baseOff = "h-1.5 w-1.5 rounded-full bg-transparent";
 
     if (!on) return baseOff;
@@ -372,7 +371,6 @@ export default function TimelinePage() {
                                                     {cell.dayNumber}
                                                 </div>
 
-                                                {/* Severity markers (under the day number) */}
                                                 <div className="absolute bottom-1 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1">
                                                     <Mark
                                                         kind="high"

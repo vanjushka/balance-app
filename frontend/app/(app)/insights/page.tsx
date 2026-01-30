@@ -20,7 +20,7 @@ type ReportCreateResponse = {
     };
 };
 
-const DEBUG = false; // true while dev, false before submit
+const DEBUG = false;
 
 function todayISO(): string {
     return new Date().toISOString().slice(0, 10);
@@ -112,27 +112,22 @@ function PillButton({
 export default function InsightsPage() {
     const [rangeDays, setRangeDays] = useState<RangeDays>(30);
 
-    // logs only for eligibility checks (>=7)
     const [logs, setLogs] = useState<SymptomLog[]>([]);
     const [logsLoading, setLogsLoading] = useState(true);
     const [logsError, setLogsError] = useState<string | null>(null);
 
-    // backend insights metrics (logged_days + debug)
     const [insights, setInsights] = useState<InsightsResponse | null>(null);
     const [insightsLoading, setInsightsLoading] = useState(true);
     const [insightsError, setInsightsError] = useState<string | null>(null);
 
-    // AI summary
     const [ai, setAi] = useState<InsightsSummaryResponse | null>(null);
     const [aiLoading, setAiLoading] = useState(false);
     const [aiError, setAiError] = useState<string | null>(null);
 
-    // Shared patterns
     const [shared, setShared] = useState<SharedPatternsResponse | null>(null);
     const [sharedLoading, setSharedLoading] = useState(false);
     const [sharedError, setSharedError] = useState<string | null>(null);
 
-    // PDF
     const [downloadLoading, setDownloadLoading] = useState(false);
     const [downloadError, setDownloadError] = useState<string | null>(null);
 
@@ -308,7 +303,6 @@ export default function InsightsPage() {
     const metrics = insights?.data ?? null;
     const meta = insights?.meta ?? null;
 
-    // Presentation-only: AI content as max 4 cards (summary + up to 3 bullets)
     const aiCards = useMemo(() => {
         if (!ai) return [];
         const cards: Array<{ kind: "summary" | "bullet"; text: string }> = [];
@@ -403,7 +397,6 @@ export default function InsightsPage() {
                     )}
                 </section>
 
-                {/* AI Reflection */}
                 <section className="mt-10">
                     <div className="flex items-center justify-between">
                         <h2 className="font-serif text-3xl leading-tight text-[var(--fg)]">
@@ -467,16 +460,13 @@ export default function InsightsPage() {
                                 </SoftCard>
                             )}
 
-                            {/* AI Disclaimer*/}
                             {ai.data.disclaimer?.trim() ? (
                                 <div className="rounded-[22px] border border-[color-mix(in_oklch,var(--primary)_35%,var(--border)_65%)] bg-[color-mix(in_oklch,var(--primary)_8%,white_92%)] px-6 py-5">
                                     <div className="flex items-start gap-4">
-                                        {/* smaller icon */}
                                         <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[color-mix(in_oklch,var(--primary)_55%,white_45%)] text-[11px] font-medium leading-none text-[var(--primary)]">
                                             i
                                         </div>
 
-                                        {/* softer text (not black) */}
                                         <p className="text-xs leading-relaxed text-[var(--muted)]">
                                             {ai.data.disclaimer}
                                         </p>
@@ -495,7 +485,6 @@ export default function InsightsPage() {
 
                 <div className="my-10 h-px w-full bg-[var(--border)] opacity-60" />
 
-                {/* Shared patterns */}
                 <section className="mt-10 space-y-2">
                     <h2 className="font-serif text-3xl leading-tight text-[var(--fg)]">
                         Shared patterns
@@ -556,7 +545,6 @@ export default function InsightsPage() {
                                         </SoftCard>
                                     ))}
 
-                                {/* Shared disclaimer*/}
                                 <div className="rounded-[22px] border border-[color-mix(in_oklch,var(--primary)_35%,var(--border)_65%)] bg-[color-mix(in_oklch,var(--primary)_8%,white_92%)] px-6 py-5">
                                     <div className="flex items-start gap-4">
                                         <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[color-mix(in_oklch,var(--primary)_55%,white_45%)] text-[11px] font-medium leading-none text-[var(--primary)]">
@@ -579,7 +567,6 @@ export default function InsightsPage() {
                     </div>
                 </section>
 
-                {/* Debug */}
                 {DEBUG && (
                     <section className="mt-10 border-t border-[var(--border)] pt-8">
                         <h2 className="text-base font-semibold text-[var(--fg)]">

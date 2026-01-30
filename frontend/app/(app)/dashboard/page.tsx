@@ -61,7 +61,7 @@ export default function DashboardPage() {
     if (loading) {
         return (
             <main>
-                <p className="text-sm text-zinc-400">Loading…</p>
+                <p className="text-sm text-[var(--muted)]">Loading…</p>
             </main>
         );
     }
@@ -219,11 +219,6 @@ export default function DashboardPage() {
                                 <span>10</span>
                             </div>
                         </div>
-                    </div>
-
-                    <div className="mt-4 flex items-center justify-between text-xs text-[var(--subtle)]">
-                        <span>None</span>
-                        <span>Severe</span>
                     </div>
                 </div>
             </section>

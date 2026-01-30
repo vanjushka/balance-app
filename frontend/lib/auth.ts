@@ -29,6 +29,7 @@ export async function login(payload: LoginPayload) {
 }
 
 export async function logout() {
+    await csrfCookie();
     return api.post("/api/auth/logout");
 }
 

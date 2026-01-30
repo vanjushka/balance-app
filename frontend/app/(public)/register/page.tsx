@@ -23,6 +23,11 @@ export default function RegisterPage() {
         setError(null);
         setLoading(true);
 
+        if (password !== passwordConfirmation) {
+            setError("Passwords do not match");
+            return;
+        }
+
         try {
             await register({
                 profile: name.trim()

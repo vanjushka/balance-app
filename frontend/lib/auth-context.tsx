@@ -37,7 +37,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const { user } = await fetchMe<User>();
             setUser(user);
         } catch (err) {
-            // If not authenticated, backend should return 401
             if (err instanceof ApiException && err.status === 401) {
                 setUser(null);
             } else {
@@ -49,17 +48,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }, []);
 
     useEffect(() => {
-        // Sanctum session: attempt to load the current user on mount
         refetch();
     }, [refetch]);
 
     const logout = useCallback(async () => {
+        setLoading(true);
         try {
             await apiLogout();
         } catch {
             // ignore
         } finally {
             setUser(null);
+            setLoading(false);
         }
     }, []);
 

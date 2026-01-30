@@ -1,4 +1,3 @@
-// lib/api.ts
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 export type ApiError = {
@@ -13,7 +12,7 @@ export class ApiException extends Error {
     constructor(
         message: string,
         status: number,
-        errors?: Record<string, string[]>
+        errors?: Record<string, string[]>,
     ) {
         super(message);
         this.name = "ApiException";
@@ -48,7 +47,6 @@ function getXsrfToken(): string | null {
     const token = getCookie("XSRF-TOKEN");
     if (!token) return null;
 
-    // Laravel sets this cookie URL-encoded
     try {
         return decodeURIComponent(token);
     } catch {
@@ -58,7 +56,7 @@ function getXsrfToken(): string | null {
 
 async function apiFetch<T>(
     path: string,
-    options: RequestInit = {}
+    options: RequestInit = {},
 ): Promise<T> {
     if (!API_URL) throw new Error("NEXT_PUBLIC_API_URL is not set");
     if (!path.startsWith("/"))
@@ -91,7 +89,7 @@ async function apiFetch<T>(
         throw new ApiException(
             errorData.message || `HTTP ${res.status}`,
             res.status,
-            errorData.errors
+            errorData.errors,
         );
     }
 

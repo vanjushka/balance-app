@@ -50,7 +50,6 @@ export function ConfirmModal({
             aria-modal="true"
             aria-label={title}
         >
-            {/* overlay */}
             <button
                 type="button"
                 aria-label="Close"
@@ -59,7 +58,6 @@ export function ConfirmModal({
                 className="absolute inset-0 bg-[var(--fg)]/20 sm:bg-[var(--fg)]/16"
             />
 
-            {/* panel */}
             <div className="relative w-full max-w-md rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] p-6 text-[var(--fg)]">
                 <div className="text-lg font-medium">{title}</div>
 

@@ -4,7 +4,6 @@ export default function PrivacyPage() {
     return (
         <main className="min-h-[100dvh] bg-[var(--bg)] px-6 pb-20 pt-8 text-[var(--fg)]">
             <div className="mx-auto w-full max-w-md">
-                {/* Top bar */}
                 <header className="flex items-center justify-between">
                     <button
                         type="button"
@@ -32,13 +31,11 @@ export default function PrivacyPage() {
                     <span className="h-11 w-11" aria-hidden />
                 </header>
 
-                {/* Content */}
                 <section className="mt-12">
                     <h1 className="font-serif text-[2.1rem] leading-[1.1] tracking-tight text-[var(--fg)]">
                         Privacy Policy
                     </h1>
 
-                    {/* divider under title */}
                     <div className="mt-4 h-px w-full bg-[color-mix(in_oklch,var(--border)_65%,transparent_35%)]" />
 
                     <p className="mt-6 text-[15px] leading-6 text-[var(--subtle)]">
@@ -49,7 +46,6 @@ export default function PrivacyPage() {
                         international audience.
                     </p>
 
-                    {/* Data collection */}
                     <div className="mt-8 h-px w-full bg-[color-mix(in_oklch,var(--border)_50%,transparent_50%)]" />
 
                     <h2 className="privacy-h2 mt-6 text-sm font-medium text-[var(--fg)]">
@@ -70,7 +66,6 @@ export default function PrivacyPage() {
                         <li>Technical data required for basic app operation</li>
                     </ul>
 
-                    {/* Health data */}
                     <div className="mt-8 h-px w-full bg-[color-mix(in_oklch,var(--border)_50%,transparent_50%)]" />
 
                     <h2 className="privacy-h2 mt-6 text-sm font-medium text-[var(--fg)]">
@@ -89,7 +84,6 @@ export default function PrivacyPage() {
                         treatment, or clinical decision-making.
                     </p>
 
-                    {/* Data usage */}
                     <div className="mt-8 h-px w-full bg-[color-mix(in_oklch,var(--border)_50%,transparent_50%)]" />
 
                     <h2 className="privacy-h2 mt-6 text-sm font-medium text-[var(--fg)]">
@@ -108,7 +102,6 @@ export default function PrivacyPage() {
                         identified.
                     </p>
 
-                    {/* Data storage & security */}
                     <div className="mt-8 h-px w-full bg-[color-mix(in_oklch,var(--border)_50%,transparent_50%)]" />
 
                     <h2 className="privacy-h2 mt-6 text-sm font-medium text-[var(--fg)]">
@@ -122,7 +115,6 @@ export default function PrivacyPage() {
                         guaranteed to be completely secure.
                     </p>
 
-                    {/* User rights */}
                     <div className="mt-8 h-px w-full bg-[color-mix(in_oklch,var(--border)_50%,transparent_50%)]" />
 
                     <h2 className="privacy-h2 mt-6 text-sm font-medium text-[var(--fg)]">
@@ -136,7 +128,6 @@ export default function PrivacyPage() {
                         and used.
                     </p>
 
-                    {/* Scope */}
                     <div className="mt-8 h-px w-full bg-[color-mix(in_oklch,var(--border)_50%,transparent_50%)]" />
 
                     <p className="mt-6 text-xs leading-5 text-[color-mix(in_oklch,var(--subtle)_80%,transparent_20%)]">

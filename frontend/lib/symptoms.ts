@@ -1,4 +1,3 @@
-// lib/symptoms.ts
 import { api } from "@/lib/api";
 import type { CanonicalSymptomTag } from "@/lib/symptomTags";
 export type SymptomTag = CanonicalSymptomTag | string;
@@ -16,7 +15,6 @@ export type SymptomLog = {
     id: number;
     user_id: number;
 
-    // casted in Laravel as date:Y-m-d
     log_date: string;
 
     pain_intensity: number | null;
